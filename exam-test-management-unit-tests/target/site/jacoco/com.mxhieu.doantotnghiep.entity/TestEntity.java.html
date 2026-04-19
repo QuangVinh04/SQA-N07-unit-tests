@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TestEntity.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Entrance Test Management - Unit Tests</a> &gt; <a href="index.source.html" class="el_package">com.mxhieu.doantotnghiep.entity</a> &gt; <span class="el_source">TestEntity.java</span></div><h1>TestEntity.java</h1><pre class="source lang-java linenums">package com.mxhieu.doantotnghiep.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.util.List;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = &quot;test&quot;)
+public class TestEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = &quot;ID&quot;)
+    private Integer id;
+
+    @Column(name = &quot;Type&quot;)
+    private String type;
+
+    @Column(name = &quot;Name&quot;)
+    private String name;
+
+
+    @ManyToOne(fetch =  FetchType.LAZY)
+    @JoinColumn(name = &quot;ModuleID&quot;)
+    private ModuleEntity module;
+
+    @OneToMany(mappedBy = &quot;test&quot;, fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List&lt;AssessmentEntity&gt; assessments;
+
+    @OneToMany(mappedBy = &quot;test&quot;, fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List&lt;TestProgressEntity&gt; testProgresses;
+
+    @OneToMany(mappedBy = &quot;test&quot;, fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List&lt;TestAttemptEntity&gt; testAttempts;
+
+    @OneToMany(mappedBy = &quot;test&quot;, fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List&lt;StudyPlanItemEntity&gt; studyPlanItems;
+
+
+    public TestEntity clone(ModuleEntity newModule) {
+<span class="nc" id="L46">        TestEntity cloned = new TestEntity();</span>
+
+<span class="nc" id="L48">        cloned.setId(null);</span>
+<span class="nc" id="L49">        cloned.setType(this.type);</span>
+<span class="nc" id="L50">        cloned.setName(this.name);</span>
+<span class="nc" id="L51">        cloned.setModule(newModule);</span>
+
+        // Clone assessments nếu có
+<span class="nc bnc" id="L54" title="All 2 branches missed.">        if (this.assessments != null) {</span>
+<span class="nc" id="L55">            cloned.setAssessments(</span>
+<span class="nc" id="L56">                    this.assessments.stream()</span>
+<span class="nc" id="L57">                            .map(a -&gt; a.clone(cloned))</span>
+<span class="nc" id="L58">                            .toList()</span>
+            );
+        }
+
+        // Không clone TestAttempt (attempt là kết quả bài làm, không nên nhân bản)
+<span class="nc" id="L63">        cloned.setTestAttempts(null);</span>
+
+<span class="nc" id="L65">        return cloned;</span>
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

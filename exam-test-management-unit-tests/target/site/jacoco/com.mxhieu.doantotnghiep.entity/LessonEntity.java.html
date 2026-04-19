@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LessonEntity.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Entrance Test Management - Unit Tests</a> &gt; <a href="index.source.html" class="el_package">com.mxhieu.doantotnghiep.entity</a> &gt; <span class="el_source">LessonEntity.java</span></div><h1>LessonEntity.java</h1><pre class="source lang-java linenums">package com.mxhieu.doantotnghiep.entity;
+
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.util.List;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = &quot;lesson&quot;)
+public class LessonEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = &quot;ID&quot;)
+    private Integer id;
+
+    @Column(name = &quot;Title&quot;)
+    private String title;
+
+    @Column(name = &quot;Summary&quot;)
+    private String summary;
+
+    @Column(name = &quot;DurationMinutes&quot;)
+    private Integer durationMinutes;
+
+    @Column(name = &quot;OrderIndex&quot;)
+    private Integer orderIndex;
+
+    @Column(name = &quot;GatingRules&quot;)
+    private Integer gatingRules;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = &quot;ModuleID&quot;)
+    private ModuleEntity module;
+
+    @OneToMany (mappedBy = &quot;lesson&quot;, fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List&lt;MediaAssetEntity&gt; mediaassets;
+
+    @OneToMany (mappedBy = &quot;lesson&quot;, fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List&lt;LessonProgressEntity&gt; lessonProgresses;
+
+
+    @OneToMany(mappedBy = &quot;lesson&quot;, fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List&lt;MaterialEntity&gt; materialEntities;
+
+    @OneToMany(mappedBy = &quot;lesson&quot;, fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List&lt;ExerciseEntity&gt; exercises;
+
+    @OneToMany(mappedBy = &quot;lesson&quot;, fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    private List&lt;StudyPlanItemEntity&gt; studyPlanItems;
+
+    public LessonEntity clone(ModuleEntity module) {
+<span class="nc" id="L57">        LessonEntity lessonEntity = new LessonEntity();</span>
+
+<span class="nc" id="L59">        lessonEntity.setId(null);</span>
+<span class="nc" id="L60">        lessonEntity.setTitle(this.title);</span>
+<span class="nc" id="L61">        lessonEntity.setSummary(this.summary);</span>
+<span class="nc" id="L62">        lessonEntity.setDurationMinutes(this.durationMinutes);</span>
+<span class="nc" id="L63">        lessonEntity.setOrderIndex(this.orderIndex);</span>
+<span class="nc" id="L64">        lessonEntity.setGatingRules(this.gatingRules);</span>
+<span class="nc" id="L65">        lessonEntity.setModule(module);</span>
+
+        // Clone mediaassets safely
+<span class="nc bnc" id="L68" title="All 2 branches missed.">        if (this.mediaassets != null) {</span>
+<span class="nc" id="L69">            lessonEntity.setMediaassets(</span>
+<span class="nc" id="L70">                    this.mediaassets.stream()</span>
+<span class="nc bnc" id="L71" title="All 2 branches missed.">                            .filter(m -&gt; m != null)</span>
+<span class="nc" id="L72">                            .map(m -&gt; m.clone(lessonEntity))</span>
+<span class="nc" id="L73">                            .toList()</span>
+            );
+        } else {
+<span class="nc" id="L76">            lessonEntity.setMediaassets(null);</span>
+        }
+
+        // Clone materialEntities safely
+<span class="nc bnc" id="L80" title="All 2 branches missed.">        if (this.materialEntities != null) {</span>
+<span class="nc" id="L81">            lessonEntity.setMaterialEntities(</span>
+<span class="nc" id="L82">                    this.materialEntities.stream()</span>
+<span class="nc bnc" id="L83" title="All 2 branches missed.">                            .filter(m -&gt; m != null)</span>
+<span class="nc" id="L84">                            .map(m -&gt; m.clone(lessonEntity))</span>
+<span class="nc" id="L85">                            .toList()</span>
+            );
+        } else {
+<span class="nc" id="L88">            lessonEntity.setMaterialEntities(null);</span>
+        }
+
+        // Clone exercises safely
+<span class="nc bnc" id="L92" title="All 2 branches missed.">        if (this.exercises != null) {</span>
+<span class="nc" id="L93">            lessonEntity.setExercises(</span>
+<span class="nc" id="L94">                    this.exercises.stream()</span>
+<span class="nc bnc" id="L95" title="All 2 branches missed.">                            .filter(e -&gt; e != null)</span>
+<span class="nc" id="L96">                            .map(e -&gt; e.clone(lessonEntity))</span>
+<span class="nc" id="L97">                            .toList()</span>
+            );
+        } else {
+<span class="nc" id="L100">            lessonEntity.setExercises(null);</span>
+        }
+
+        // StudyPlanItem không clone
+<span class="nc" id="L104">        lessonEntity.setStudyPlanItems(null);</span>
+
+<span class="nc" id="L106">        return lessonEntity;</span>
+    }
+
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>TestProgressServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Entrance Test Management - Unit Tests</a> &gt; <a href="index.source.html" class="el_package">com.mxhieu.doantotnghiep.service.impl</a> &gt; <span class="el_source">TestProgressServiceImpl.java</span></div><h1>TestProgressServiceImpl.java</h1><pre class="source lang-java linenums">package com.mxhieu.doantotnghiep.service.impl;
+
+import com.mxhieu.doantotnghiep.dto.request.LessonOrTestAroundRequest;
+import com.mxhieu.doantotnghiep.dto.request.TestProgressRequest;
+import com.mxhieu.doantotnghiep.dto.response.LessonOrTestAroundResponse;
+import com.mxhieu.doantotnghiep.entity.*;
+import com.mxhieu.doantotnghiep.exception.AppException;
+import com.mxhieu.doantotnghiep.exception.ErrorCode;
+import com.mxhieu.doantotnghiep.repository.*;
+import com.mxhieu.doantotnghiep.service.LessonProgressService;
+import com.mxhieu.doantotnghiep.service.LessonService;
+import com.mxhieu.doantotnghiep.service.TestProgressService;
+import com.mxhieu.doantotnghiep.service.TrackService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.util.Comparator;
+import java.util.List;
+import java.util.Map;
+
+
+@RequiredArgsConstructor
+@Service
+public class TestProgressServiceImpl implements TestProgressService {
+    private final TestProgressRepository testProgressRepository;
+    private final StudentProfileRepository studentProfileRepository;
+    private final TestRepository testRepository;
+    private final TestAttemptRepository testAttemptRepository;
+    private final LessonService lessonService;
+    private final LessonRepository lessonRepository;
+    private final LessonProgressRepository lessonProgressRepository;
+    private final LessonProgressService lessonProgressService;
+    private final TrackService trackService;
+    private final EnrollmentRepository enrollmentRepository;
+    @Override
+    public Boolean checkCompletionCondition(TestProgressRequest request) {
+<span class="fc" id="L37">        TestEntity testEntity = testRepository.findById(request.getTestId()).orElseThrow(() -&gt; new AppException(ErrorCode.TEST_NOT_FOUND));</span>
+<span class="fc" id="L38">        StudentProfileEntity studentProfileEntity = studentProfileRepository.findById(request.getStudentprofileId()).orElseThrow(()-&gt;new AppException(ErrorCode.STUDENT_PROFILE_NOT_FOUND));</span>
+<span class="fc" id="L39">        List&lt;TestProgressEntity&gt; testProgressEntities = testProgressRepository.findByTest_IdAndStudentProfile_Id(request.getTestId(), request.getStudentprofileId());</span>
+
+<span class="fc bfc" id="L41" title="All 2 branches covered.">        if(!testProgressEntities.isEmpty()){</span>
+<span class="fc" id="L42">            TestProgressEntity testProgressEntity = testProgressEntities.get(0);</span>
+<span class="fc bfc" id="L43" title="All 2 branches covered.">            if(checkCompleted(testEntity, request)){</span>
+<span class="fc" id="L44">                testProgressEntity.setProcess(2);</span>
+<span class="fc" id="L45">                unLockNext(testEntity, studentProfileEntity);</span>
+<span class="fc" id="L46">                testProgressRepository.save(testProgressEntity);</span>
+<span class="fc" id="L47">                return true;</span>
+            } else {
+<span class="fc" id="L49">                testProgressEntity.setProcess(1);</span>
+<span class="fc" id="L50">                testProgressRepository.save(testProgressEntity);</span>
+<span class="fc" id="L51">                return false;</span>
+            }
+
+        } else {
+<span class="fc" id="L55">            throw new AppException(ErrorCode.TEST_PROGRESS_NOT_EXISTS);</span>
+        }
+    }
+
+    private void unLockNext(TestEntity testEntity, StudentProfileEntity studentProfileEntity) {
+        try{
+<span class="fc" id="L61">            LessonOrTestAroundRequest request = new LessonOrTestAroundRequest(testEntity.getId(),&quot;TEST&quot;);</span>
+<span class="nc" id="L62">            LessonOrTestAroundResponse nextLessonOrTest= lessonService.getNextLessonOrTest(request);</span>
+<span class="nc bnc" id="L63" title="All 2 branches missed.">            if(nextLessonOrTest.getType().equals(&quot;LESSON&quot;)){</span>
+<span class="nc" id="L64">                LessonEntity nextLesson = lessonRepository.findById(nextLessonOrTest.getId()).orElseThrow(()-&gt;new AppException(ErrorCode.LESSON_NOT_FOUND));</span>
+<span class="nc" id="L65">                List&lt;LessonProgressEntity&gt; lessonProgressEntities = lessonProgressRepository.findByLesson_IdAndStudentProfile_Id(nextLesson.getId(), studentProfileEntity.getId());</span>
+<span class="nc bnc" id="L66" title="All 2 branches missed.">                if(lessonProgressEntities.isEmpty()){</span>
+<span class="nc" id="L67">                    LessonProgressEntity lessonProgressEntity = new LessonProgressEntity();</span>
+<span class="nc" id="L68">                    lessonProgressEntity.setLesson(nextLesson);</span>
+<span class="nc" id="L69">                    lessonProgressEntity.setStudentProfile(studentProfileEntity);</span>
+<span class="nc" id="L70">                    lessonProgressEntity.setProcess(0); // unlock</span>
+<span class="nc" id="L71">                    lessonProgressEntity.setPercentageWatched(0);</span>
+<span class="nc" id="L72">                    lessonProgressRepository.save(lessonProgressEntity);</span>
+                }
+<span class="nc" id="L74">            }else{</span>
+<span class="nc" id="L75">                TestEntity nextTest = testRepository.findById(nextLessonOrTest.getId()).orElseThrow(()-&gt;new AppException(ErrorCode.TEST_NOT_FOUND));</span>
+<span class="nc" id="L76">                List&lt;TestProgressEntity&gt; testProgressEntities = testProgressRepository.findByTest_IdAndStudentProfile_Id(nextTest.getId(), studentProfileEntity.getId());</span>
+<span class="nc bnc" id="L77" title="All 2 branches missed.">                if(testProgressEntities.isEmpty()){</span>
+<span class="nc" id="L78">                    TestProgressEntity testProgressEntity = new TestProgressEntity();</span>
+<span class="nc" id="L79">                    testProgressEntity.setTest(nextTest);</span>
+<span class="nc" id="L80">                    testProgressEntity.setStudentProfile(studentProfileEntity);</span>
+<span class="nc" id="L81">                    testProgressEntity.setProcess(0); // unlock</span>
+<span class="nc" id="L82">                    testProgressRepository.save(testProgressEntity);</span>
+
+                }
+            }
+<span class="fc" id="L86">        }catch (AppException e){</span>
+<span class="fc" id="L87">            lessonProgressService.unLockNextCourse(testEntity.getModule().getCourse(), studentProfileEntity);</span>
+<span class="nc" id="L88">        }</span>
+
+<span class="fc" id="L90">    }</span>
+
+    private boolean checkCompleted(TestEntity testEntity, TestProgressRequest request) {
+<span class="fc" id="L93">        TestAttemptEntity attempt = testAttemptRepository.findTopByTest_IdAndStudentProfile_IdOrderByTotalScoreDesc(testEntity.getId(), request.getStudentprofileId())</span>
+<span class="pc" id="L94">                .orElseThrow(() -&gt; new AppException(ErrorCode.TEST_ATTEMPT_NOT_FOUND));</span>
+
+
+<span class="fc bfc" id="L97" title="All 2 branches covered.">        return attempt.getTotalScore() &gt;= 50;</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>

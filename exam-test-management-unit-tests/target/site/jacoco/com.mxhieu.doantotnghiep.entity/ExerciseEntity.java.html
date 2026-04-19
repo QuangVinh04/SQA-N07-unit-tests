@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>ExerciseEntity.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">Entrance Test Management - Unit Tests</a> &gt; <a href="index.source.html" class="el_package">com.mxhieu.doantotnghiep.entity</a> &gt; <span class="el_source">ExerciseEntity.java</span></div><h1>ExerciseEntity.java</h1><pre class="source lang-java linenums">package com.mxhieu.doantotnghiep.entity;
+
+import com.fasterxml.jackson.annotation.JsonFormat;
+import com.mxhieu.doantotnghiep.converter.ParagraphsConverter;
+import jakarta.persistence.*;
+import lombok.*;
+
+import java.time.LocalTime;
+import java.util.List;
+
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+@Entity
+@Table(name = &quot;exercise&quot;)
+public class ExerciseEntity {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = &quot;ID&quot;)
+    private Integer id;
+
+    @Column(name = &quot;Type&quot;)
+    private String type;
+
+    @Column(name = &quot;Title&quot;)
+    private String title;
+
+    @Column(name = &quot;Instruction&quot;)
+    private String instruction;
+
+    @Column(name = &quot;OrderIndex&quot;)
+    private int orderIndex;
+
+    @Column(name = &quot;UserID&quot;)
+    private Integer userId;
+
+    @Column(name = &quot;MediaData&quot;)
+    private byte[] mediaData;
+
+    @Column(name = &quot;ImageData&quot;)
+    private byte[] imageData;
+
+    @Column(name = &quot;ShowTime&quot;)
+    private LocalTime showTime;
+
+    @Column(name = &quot;Paragraphs&quot;, columnDefinition = &quot;MEDIUMTEXT&quot;)
+    @Convert(converter = ParagraphsConverter.class)
+    private List&lt;String&gt; paragraphs;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = &quot;ExerciseTypeID&quot;)
+    private ExerciseTypeEntity exercisetype;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = &quot;LessonID&quot;)
+    private LessonEntity lesson;
+
+    @OneToMany(mappedBy = &quot;exercise&quot;, fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    List&lt;QuestionEntity&gt; questions;
+
+    @OneToMany(mappedBy = &quot;exercise&quot;, fetch = FetchType.LAZY, cascade = CascadeType.ALL, orphanRemoval = true)
+    List&lt;AttemptEntity&gt; attempts;
+
+    public ExerciseEntity clone(LessonEntity lesson) {
+<span class="nc" id="L67">        ExerciseEntity cloned = new ExerciseEntity();</span>
+
+<span class="nc" id="L69">        cloned.setId(null);</span>
+<span class="nc" id="L70">        cloned.setLesson(lesson);</span>
+
+        // Clone primitive fields
+<span class="nc" id="L73">        cloned.setType(this.type);</span>
+<span class="nc" id="L74">        cloned.setTitle(this.title);</span>
+<span class="nc" id="L75">        cloned.setInstruction(this.instruction);</span>
+<span class="nc" id="L76">        cloned.setOrderIndex(this.orderIndex);</span>
+<span class="nc" id="L77">        cloned.setUserId(this.userId);</span>
+<span class="nc" id="L78">        cloned.setShowTime(this.showTime);</span>
+
+        // Clone byte arrays safely
+<span class="nc" id="L81">        cloned.setMediaData(</span>
+<span class="nc bnc" id="L82" title="All 2 branches missed.">                this.mediaData != null ? this.mediaData.clone() : null</span>
+        );
+<span class="nc" id="L84">        cloned.setImageData(</span>
+<span class="nc bnc" id="L85" title="All 2 branches missed.">                this.imageData != null ? this.imageData.clone() : null</span>
+        );
+
+        // Clone paragraphs (List&lt;String&gt;)
+<span class="nc" id="L89">        cloned.setParagraphs(</span>
+<span class="nc bnc" id="L90" title="All 2 branches missed.">                this.paragraphs != null ? List.copyOf(this.paragraphs) : null</span>
+        );
+
+        // ExerciseType không clone → gán lại loại cũ
+<span class="nc" id="L94">        cloned.setExercisetype(this.exercisetype);</span>
+
+        // Clone QUESTIONS (deep clone)
+<span class="nc bnc" id="L97" title="All 2 branches missed.">        if (this.questions != null) {</span>
+<span class="nc" id="L98">            cloned.setQuestions(</span>
+<span class="nc" id="L99">                    this.questions.stream()</span>
+<span class="nc" id="L100">                            .map(q -&gt; q.clone(cloned))</span>
+<span class="nc" id="L101">                            .toList()</span>
+            );
+        }
+
+        // ATTEMPTS KHÔNG clone (nằm trong kết quả học)
+<span class="nc" id="L106">        cloned.setAttempts(null);</span>
+
+<span class="nc" id="L108">        return cloned;</span>
+    }
+
+
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.12.202403310830</span></div></body></html>
