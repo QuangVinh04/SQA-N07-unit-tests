@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.2.5</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>com.mxhieu</groupId>
+    <artifactId>toeic-study-unit-tests</artifactId>
+    <version>1.0.0</version>
+    <packaging>jar</packaging>
+    <name>TOEIC Study Unit Tests</name>
+    <description>
+        Unit test riêng cho chức năng 10: Lập lịch học &amp; Học tập khóa học TOEIC.
+        Bao gồm: StudyPlanServiceImpl, LessonProgressServiceImpl,
+                 LessonServiceImpl, TestProgressServiceImpl.
+    </description>
+
+    <properties>
+        <java.version>17</java.version>
+        <projectlombok-lombok.version>1.18.30</projectlombok-lombok.version>
+    </properties>
+
+    <dependencies>
+
+        <!-- ===== Spring Boot Test (JUnit 5 + Mockito đã bundled) ===== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- ===== Mockito core (explicit để dùng @ExtendWith(MockitoExtension)) ===== -->
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-core</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- ===== Lombok ===== -->
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <version>${projectlombok-lombok.version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <!-- ===== Jakarta Persistence (chỉ cần annotation, không cần DB thật) ===== -->
+        <dependency>
+            <groupId>jakarta.persistence</groupId>
+            <artifactId>jakarta.persistence-api</artifactId>
+        </dependency>
+
+        <!-- ===== Spring Data JPA (để import các annotation @Entity, Repository) ===== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-data-jpa</artifactId>
+        </dependency>
+
+        <!-- ===== Spring Web (cho ResponseEntity v.v.) ===== -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- ===== JaCoCo Coverage Plugin dependency (runtime) ===== -->
+        <dependency>
+            <groupId>org.jacoco</groupId>
+            <artifactId>org.jacoco.agent</artifactId>
+            <version>0.8.11</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- ===== JUnit Platform Launcher (dùng cho custom TestExecutionListener) ===== -->
+        <dependency>
+            <groupId>org.junit.platform</groupId>
+            <artifactId>junit-platform-launcher</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+    </dependencies>
+
+    <build>
+        <plugins>
+
+            <!-- Lombok annotation processor -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-compiler-plugin</artifactId>
+                <configuration>
+                    <annotationProcessorPaths>
+                        <path>
+                            <groupId>org.projectlombok</groupId>
+                            <artifactId>lombok</artifactId>
+                            <version>${projectlombok-lombok.version}</version>
+                        </path>
+                    </annotationProcessorPaths>
+                </configuration>
+            </plugin>
+
+            <!-- JaCoCo: đo Code Coverage chỉ trên 4 Service cần kiểm thử -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>0.8.11</version>
+                <configuration>
+                    <!--
+                        Phạm vi đo Coverage: 3 service impl chính có logic nghiệp vụ được kiểm thử.
+                        StudyPlanServiceImpl không được đưa vào vì phụ thuộc hơn 10 repo và service
+                        khác nhau, cần integration test mới đo được đầy đủ.
+                    -->
+                    <includes>
+                        <include>com/mxhieu/doantotnghiep/service/impl/LessonProgressServiceImpl*</include>
+                        <include>com/mxhieu/doantotnghiep/service/impl/LessonServiceImpl*</include>
+                        <include>com/mxhieu/doantotnghiep/service/impl/StudyPlanServiceImpl*</include>
+                        <include>com/mxhieu/doantotnghiep/service/impl/TestProgressServiceImpl*</include>
+                    </includes>
+                </configuration>
+                <executions>
+                    <!-- Chuẩn bị agent trước khi test chạy -->
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <!-- Sinh báo cáo HTML sau khi test xong -->
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <!-- Surefire: chạy JUnit 5 -->
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <configuration>
+                    <useModulePath>false</useModulePath>
+                    <!-- Ép JVM dùng UTF-8 để tránh lỗi font tiếng Việt trong log -->
+                    <argLine>-Dfile.encoding=UTF-8 -Dstdout.encoding=UTF-8 -Dstderr.encoding=UTF-8</argLine>
+                </configuration>
+            </plugin>
+
+        </plugins>
+    </build>
+
+</project>

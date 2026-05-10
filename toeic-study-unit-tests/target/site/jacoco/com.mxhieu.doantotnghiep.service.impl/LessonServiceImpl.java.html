@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LessonServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">TOEIC Study Unit Tests</a> &gt; <a href="index.source.html" class="el_package">com.mxhieu.doantotnghiep.service.impl</a> &gt; <span class="el_source">LessonServiceImpl.java</span></div><h1>LessonServiceImpl.java</h1><pre class="source lang-java linenums"><span class="fc" id="L1">package com.mxhieu.doantotnghiep.service.impl;</span>
+
+import com.mxhieu.doantotnghiep.dto.request.LessonOrTestAroundRequest;
+import com.mxhieu.doantotnghiep.dto.response.LessonOrTestAroundResponse;
+import com.mxhieu.doantotnghiep.dto.response.LessonResponse;
+import com.mxhieu.doantotnghiep.entity.*;
+import com.mxhieu.doantotnghiep.exception.AppException;
+import com.mxhieu.doantotnghiep.exception.ErrorCode;
+import com.mxhieu.doantotnghiep.repository.*;
+import com.mxhieu.doantotnghiep.service.LessonService;
+import com.mxhieu.doantotnghiep.utils.ModuleType;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.stream.IntStream;
+
+/**
+ * Phiên bản LessonServiceImpl dành cho project unit test.
+ * Chỉ bao gồm các method cần kiểm thử, loại bỏ các phụ thuộc không liên quan
+ * (LessonConverter, MaterialConverter, MediaAssetConverter, v.v.)
+ */
+@Service
+@RequiredArgsConstructor
+public class LessonServiceImpl implements LessonService {
+
+    private final LessonRepository lessonRepository;
+    private final ExerciseRepository exerciseRepository;
+    private final EnrollmentCourseRepository enrollmentcourseRepository;
+    private final LessonProgressRepository lessonProgressRepository;
+    private final TestRepository testRepository;
+
+    /**
+     * Kiểm tra học viên đã hoàn thành bài học chưa.
+     * Process = 2 → đã hoàn thành (DONE).
+     */
+    @Override
+    public Boolean isCompletedLesson(Integer lessonId, Integer studentProfileId) {
+<span class="fc" id="L41">        List&lt;LessonProgressEntity&gt; lessonProgressEntities =</span>
+<span class="fc" id="L42">                lessonProgressRepository.findByLesson_IdAndStudentProfile_Id(lessonId, studentProfileId);</span>
+<span class="fc bfc" id="L43" title="All 2 branches covered.">        if (lessonProgressEntities.size() == 0) {</span>
+<span class="fc" id="L44">            return false;</span>
+<span class="pc bpc" id="L45" title="1 of 2 branches missed.">        } else if (lessonProgressEntities.get(0).getProcess() == 0</span>
+<span class="fc bfc" id="L46" title="All 2 branches covered.">                || lessonProgressEntities.get(0).getProcess() == 1) {</span>
+<span class="fc" id="L47">            return false;</span>
+        }
+<span class="fc" id="L49">        return true;</span>
+    }
+
+    /**
+     * Kiểm tra bài học có đang bị khóa với học viên không.
+     * LOCK  → course bị lock.
+     * DONE  → không khóa (đã hoàn thành cả course).
+     * Nếu không có progress record → bị khóa (chưa được unlock).
+     */
+    @Override
+    public Boolean isLockLesson(Integer lessonId, Integer studentProfileId) {
+<span class="fc" id="L60">        LessonEntity lessonEntity = lessonRepository.findById(lessonId)</span>
+<span class="fc" id="L61">                .orElseThrow(() -&gt; new AppException(ErrorCode.LESSON_NOT_FOUND));</span>
+<span class="fc" id="L62">        String statusOfCourse = enrollmentcourseRepository.findStatus(</span>
+<span class="fc" id="L63">                studentProfileId, lessonEntity.getModule().getCourse().getId());</span>
+<span class="fc" id="L64">        List&lt;LessonProgressEntity&gt; lessonProgressEntities =</span>
+<span class="fc" id="L65">                lessonProgressRepository.findByLesson_IdAndStudentProfile_Id(</span>
+<span class="fc" id="L66">                        lessonEntity.getId(), studentProfileId);</span>
+<span class="fc bfc" id="L67" title="All 2 branches covered.">        if (&quot;LOCK&quot;.equals(statusOfCourse)) {</span>
+<span class="fc" id="L68">            return true;</span>
+<span class="fc bfc" id="L69" title="All 2 branches covered.">        } else if (&quot;DONE&quot;.equals(statusOfCourse)) {</span>
+<span class="fc" id="L70">            return false;</span>
+        } else {
+<span class="fc" id="L72">            return lessonProgressEntities.isEmpty();</span>
+        }
+    }
+
+    /**
+     * Tính số sao hoàn thành bài học (0-3).
+     * Nếu không có exercise và đã hoàn thành → 3 sao.
+     * Dựa vào % điểm: 0→0 sao, &lt;50→1 sao, 50-79→2 sao, &gt;=80→3 sao.
+     */
+    @Override
+    public int completedStar(Integer lessonId, Integer userId) {
+<span class="fc" id="L83">        LessonEntity lesson = lessonRepository.findById(lessonId)</span>
+<span class="fc" id="L84">                .orElseThrow(() -&gt; new AppException(ErrorCode.LESSON_NOT_FOUND));</span>
+<span class="pc bpc" id="L85" title="1 of 4 branches missed.">        if (lesson.getExercises().isEmpty() &amp;&amp; isCompletedLesson(lessonId, userId)) {</span>
+<span class="fc" id="L86">            return 3;</span>
+        }
+<span class="fc" id="L88">        int tongDiemDatDuoc = lessonRepository.totalScroreOfLesson(lessonId, userId);</span>
+<span class="fc" id="L89">        int diemToiDa = exerciseRepository.countByLessonId(lessonId) * 100;</span>
+<span class="fc" id="L90">        float phanTramDiem = (float) tongDiemDatDuoc / diemToiDa * 100;</span>
+<span class="fc bfc" id="L91" title="All 4 branches covered.">        if (phanTramDiem == 0 || tongDiemDatDuoc == 0) {</span>
+<span class="fc" id="L92">            return 0;</span>
+<span class="fc bfc" id="L93" title="All 2 branches covered.">        } else if (phanTramDiem &lt; 50) {</span>
+<span class="fc" id="L94">            return 1;</span>
+<span class="pc bpc" id="L95" title="1 of 4 branches missed.">        } else if (phanTramDiem &gt;= 50 &amp;&amp; phanTramDiem &lt; 80) {</span>
+<span class="fc" id="L96">            return 2;</span>
+        } else {
+<span class="fc" id="L98">            return 3;</span>
+        }
+    }
+
+    /**
+     * Lấy lesson/test tiếp theo trong khóa học, sắp xếp theo orderIndex của module và item.
+     * Ném AppException(LESSON_NOT_HAS_NEXT) nếu đang ở bài cuối.
+     */
+    @Override
+    public LessonOrTestAroundResponse getNextLessonOrTest(LessonOrTestAroundRequest request) {
+<span class="fc" id="L108">        CourseEntity course = null;</span>
+<span class="fc" id="L109">        ItemWrapper currentWrapper = null;</span>
+
+<span class="fc bfc" id="L111" title="All 2 branches covered.">        if (request.getType().trim().equals(&quot;TEST&quot;)) {</span>
+<span class="fc" id="L112">            TestEntity testEntity = testRepository.findById(request.getId())</span>
+<span class="fc" id="L113">                    .orElseThrow(() -&gt; new AppException(ErrorCode.TEST_NOT_FOUND));</span>
+<span class="fc" id="L114">            course = testEntity.getModule().getCourse();</span>
+<span class="fc" id="L115">            currentWrapper = new ItemWrapper(</span>
+<span class="fc" id="L116">                    testEntity.getModule().getOrderIndex(), 0, testEntity.getId(), &quot;TEST&quot;);</span>
+<span class="fc bfc" id="L117" title="All 2 branches covered.">        } else if (request.getType().trim().equals(&quot;LESSON&quot;)) {</span>
+<span class="fc" id="L118">            LessonEntity lessonEntity = lessonRepository.findById(request.getId())</span>
+<span class="pc" id="L119">                    .orElseThrow(() -&gt; new AppException(ErrorCode.LESSON_NOT_FOUND));</span>
+<span class="fc" id="L120">            course = lessonEntity.getModule().getCourse();</span>
+<span class="fc" id="L121">            currentWrapper = new ItemWrapper(</span>
+<span class="fc" id="L122">                    lessonEntity.getModule().getOrderIndex(),</span>
+<span class="fc" id="L123">                    lessonEntity.getOrderIndex(),</span>
+<span class="fc" id="L124">                    lessonEntity.getId(), &quot;LESSON&quot;);</span>
+        }
+
+<span class="fc" id="L127">        List&lt;ItemWrapper&gt; items = buildItemList(course);</span>
+<span class="fc" id="L128">        items.sort(Comparator.comparing(ItemWrapper::moduleOrder).thenComparing(ItemWrapper::itemOrder));</span>
+
+<span class="fc" id="L130">        final ItemWrapper target = currentWrapper;</span>
+<span class="fc" id="L131">        int index = IntStream.range(0, items.size())</span>
+<span class="fc" id="L132">                .filter(i -&gt; items.get(i).equals(target))</span>
+<span class="fc" id="L133">                .findFirst()</span>
+<span class="pc" id="L134">                .orElseThrow(() -&gt; new AppException(ErrorCode.LESSON_NOT_HAS_NEXT));</span>
+
+<span class="fc bfc" id="L136" title="All 2 branches covered.">        if (index == items.size() - 1) {</span>
+<span class="fc" id="L137">            throw new AppException(ErrorCode.LESSON_NOT_HAS_NEXT);</span>
+        }
+
+<span class="fc" id="L140">        ItemWrapper next = items.get(index + 1);</span>
+<span class="fc" id="L141">        return LessonOrTestAroundResponse.builder().Id(next.id()).type(next.type()).build();</span>
+    }
+
+    /**
+     * Lấy lesson/test trước đó trong khóa học.
+     * Ném AppException(LESSON_NOT_HAS_PREVIOUS) nếu đang ở bài đầu tiên.
+     */
+    @Override
+    public LessonOrTestAroundResponse getPreviousLessonID(LessonOrTestAroundRequest request) {
+<span class="fc" id="L150">        CourseEntity course = null;</span>
+<span class="fc" id="L151">        ItemWrapper currentWrapper = null;</span>
+
+<span class="fc bfc" id="L153" title="All 2 branches covered.">        if (request.getType().equals(&quot;TEST&quot;)) {</span>
+<span class="fc" id="L154">            TestEntity testEntity = testRepository.findById(request.getId())</span>
+<span class="fc" id="L155">                    .orElseThrow(() -&gt; new AppException(ErrorCode.TEST_NOT_FOUND));</span>
+<span class="fc" id="L156">            course = testEntity.getModule().getCourse();</span>
+<span class="fc" id="L157">            currentWrapper = new ItemWrapper(</span>
+<span class="fc" id="L158">                    testEntity.getModule().getOrderIndex(), 0, testEntity.getId(), &quot;TEST&quot;);</span>
+<span class="pc bpc" id="L159" title="1 of 2 branches missed.">        } else if (request.getType().equals(&quot;LESSON&quot;)) {</span>
+<span class="fc" id="L160">            LessonEntity lessonEntity = lessonRepository.findById(request.getId())</span>
+<span class="pc" id="L161">                    .orElseThrow(() -&gt; new AppException(ErrorCode.LESSON_NOT_FOUND));</span>
+<span class="fc" id="L162">            course = lessonEntity.getModule().getCourse();</span>
+<span class="fc" id="L163">            currentWrapper = new ItemWrapper(</span>
+<span class="fc" id="L164">                    lessonEntity.getModule().getOrderIndex(),</span>
+<span class="fc" id="L165">                    lessonEntity.getOrderIndex(),</span>
+<span class="fc" id="L166">                    lessonEntity.getId(), &quot;LESSON&quot;);</span>
+        }
+
+<span class="fc" id="L169">        List&lt;ItemWrapper&gt; items = buildItemList(course);</span>
+<span class="fc" id="L170">        items.sort(Comparator.comparing(ItemWrapper::moduleOrder).thenComparing(ItemWrapper::itemOrder));</span>
+
+<span class="fc" id="L172">        final ItemWrapper target = currentWrapper;</span>
+<span class="fc" id="L173">        int index = IntStream.range(0, items.size())</span>
+<span class="fc" id="L174">                .filter(i -&gt; items.get(i).equals(target))</span>
+<span class="fc" id="L175">                .findFirst()</span>
+<span class="pc" id="L176">                .orElseThrow(() -&gt; new AppException(ErrorCode.LESSON_NOT_HAS_PREVIOUS));</span>
+
+<span class="fc bfc" id="L178" title="All 2 branches covered.">        if (index == 0) {</span>
+<span class="fc" id="L179">            throw new AppException(ErrorCode.LESSON_NOT_HAS_PREVIOUS);</span>
+        }
+
+<span class="fc" id="L182">        ItemWrapper previous = items.get(index - 1);</span>
+<span class="fc" id="L183">        return LessonOrTestAroundResponse.builder().Id(previous.id()).type(previous.type()).build();</span>
+    }
+
+    /** Helper: gom tất cả lesson và test trong khóa học thành danh sách ItemWrapper. */
+    private List&lt;ItemWrapper&gt; buildItemList(CourseEntity course) {
+<span class="fc" id="L188">        List&lt;ItemWrapper&gt; items = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L189" title="All 2 branches covered.">        for (ModuleEntity module : course.getModules()) {</span>
+<span class="fc" id="L190">            Long moduleOrder = module.getOrderIndex();</span>
+<span class="fc bfc" id="L191" title="All 2 branches covered.">            if (module.getType() == ModuleType.LESSON) {</span>
+<span class="fc" id="L192">                module.getLessons().stream()</span>
+<span class="fc" id="L193">                        .sorted(Comparator.comparing(LessonEntity::getOrderIndex))</span>
+<span class="fc" id="L194">                        .forEach(lesson -&gt; items.add(</span>
+<span class="fc" id="L195">                                new ItemWrapper(moduleOrder, lesson.getOrderIndex(), lesson.getId(), &quot;LESSON&quot;)));</span>
+            }
+<span class="pc bpc" id="L197" title="1 of 4 branches missed.">            if (module.getType() == ModuleType.TEST &amp;&amp; !module.getTests().isEmpty()) {</span>
+<span class="fc" id="L198">                TestEntity test = module.getTests().get(0);</span>
+<span class="fc" id="L199">                items.add(new ItemWrapper(moduleOrder, 0, test.getId(), &quot;TEST&quot;));</span>
+            }
+        }
+<span class="fc" id="L202">        return items;</span>
+    }
+
+    record ItemWrapper(Long moduleOrder, int itemOrder, Integer id, String type) {}
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

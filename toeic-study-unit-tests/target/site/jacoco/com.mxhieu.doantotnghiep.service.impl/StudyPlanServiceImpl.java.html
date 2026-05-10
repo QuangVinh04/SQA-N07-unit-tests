@@ -1,0 +1,807 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>StudyPlanServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">TOEIC Study Unit Tests</a> &gt; <a href="index.source.html" class="el_package">com.mxhieu.doantotnghiep.service.impl</a> &gt; <span class="el_source">StudyPlanServiceImpl.java</span></div><h1>StudyPlanServiceImpl.java</h1><pre class="source lang-java linenums">package com.mxhieu.doantotnghiep.service.impl;
+
+import com.mxhieu.doantotnghiep.converter.StudyPlanConverter;
+import com.mxhieu.doantotnghiep.dto.request.StudyPlanRequest;
+import com.mxhieu.doantotnghiep.dto.response.*;
+import com.mxhieu.doantotnghiep.entity.*;
+import com.mxhieu.doantotnghiep.exception.AppException;
+import com.mxhieu.doantotnghiep.exception.ErrorCode;
+import com.mxhieu.doantotnghiep.repository.*;
+import com.mxhieu.doantotnghiep.service.*;
+import com.mxhieu.doantotnghiep.utils.ModuleType;
+import lombok.*;
+import org.springframework.stereotype.Service;
+
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.util.*;
+import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class StudyPlanServiceImpl implements StudyPlanService {
+    private final TrackRepository trackRepository;
+    private final EnrollmentCourseRepository enrollmentCourseRepository;
+    private final EnrollmentRepository enrollmentRepository;
+    private final StudentProfileRepository studentProfileRepository;
+    private final LessonRepository lessonRepository;
+    private final TestRepository testRepository;
+    private final StudyPlanRepository studyPlanRepository;
+    private final StudyPlanConverter studyPlanConverter;
+    private final LessonService lessonService;
+    private final TestService testService;
+    private final TrackService trackService;
+    private final LessonProgressRepository lessonProgressRepository;
+    private final TestProgressRepository testProgressRepository;
+
+    @Override
+    public StudyPlanOverViewResponse getOverviewData(Integer studentId) {
+<span class="fc" id="L40">        Integer trackId = trackService.trackDauTienChuaHoanThanhVaMoKhoa(studentId);</span>
+<span class="fc" id="L41">        TrackEntity trackEntity = trackRepository.findById(trackId).orElseThrow(() -&gt; new RuntimeException(&quot;Track not found&quot;));</span>
+
+<span class="fc" id="L43">        List&lt;EnrollmentEntity&gt; enrollments = enrollmentRepository.findByTrack_IdAndStudentProfile_Id(trackId,studentId);</span>
+<span class="fc" id="L44">        List&lt;CourseEntity&gt; courses = getCoursesFromEnrollments(enrollments);</span>
+<span class="fc" id="L45">        return StudyPlanOverViewResponse.builder()</span>
+<span class="fc" id="L46">                .trackId(trackEntity.getId())</span>
+<span class="fc" id="L47">                .trackName(trackEntity.getName())</span>
+<span class="fc" id="L48">                .trackDescription(trackEntity.getDescription())</span>
+<span class="fc" id="L49">                .overview(createOverview(courses))</span>
+<span class="fc" id="L50">                .mucTieuDauRa(createDauRa(trackEntity))</span>
+<span class="pc bpc" id="L51" title="1 of 2 branches missed.">                .thoiGianHocTieuChuan(soNgayHocTieuChuan(courses) != 0 ? soNgayHocTieuChuan(courses) + &quot; ngày học tiêu chuẩn (khoảng 02 giờ/ngày)&quot; : &quot;Chưa có thời gian học tiêu chuẩn&quot;)</span>
+<span class="fc" id="L52">                .build();</span>
+    }
+    private boolean isValidStudyDate(LocalDate date, List&lt;Integer&gt; ngayHocTrongTuan) {
+<span class="fc" id="L55">        return ngayHocTrongTuan.contains(date.getDayOfWeek().getValue());</span>
+    }
+
+    private LocalDate findBefore(LocalDate date, List&lt;Integer&gt; ngayHocTrongTuan) {
+<span class="fc" id="L59">        LocalDate d = date.minusDays(1);</span>
+<span class="fc bfc" id="L60" title="All 2 branches covered.">        while (!isValidStudyDate(d, ngayHocTrongTuan)) {</span>
+<span class="fc" id="L61">            d = d.minusDays(1);</span>
+        }
+<span class="fc" id="L63">        return d;</span>
+    }
+    private LocalDate findAfter(LocalDate date, List&lt;Integer&gt; ngayHocTrongTuan) {
+<span class="fc" id="L66">        LocalDate d = date.plusDays(1);</span>
+<span class="fc bfc" id="L67" title="All 2 branches covered.">        while (!isValidStudyDate(d, ngayHocTrongTuan)) {</span>
+<span class="fc" id="L68">            d = d.plusDays(1);</span>
+        }
+<span class="fc" id="L70">        return d;</span>
+    }
+    private LocalDate chooseStudyDate(
+            LocalDate currentDate,
+            int gapDays,
+            List&lt;Integer&gt; ngayHocTrongTuan,
+            Set&lt;LocalDate&gt; usedDates,
+            LocalDate startDate
+    ) {
+<span class="fc" id="L79">        LocalDate target = currentDate.plusDays(gapDays);</span>
+
+        // 1. target hợp lệ, trống, và KHÔNG trước startDate
+<span class="fc bfc" id="L82" title="All 2 branches covered.">        if (!target.isBefore(startDate)</span>
+<span class="fc bfc" id="L83" title="All 2 branches covered.">                &amp;&amp; isValidStudyDate(target, ngayHocTrongTuan)</span>
+<span class="pc bpc" id="L84" title="1 of 2 branches missed.">                &amp;&amp; !usedDates.contains(target)) {</span>
+<span class="fc" id="L85">            return target;</span>
+        }
+
+        // 2. tìm ngày hợp lệ gần nhất
+<span class="fc" id="L89">        LocalDate before = findBefore(target, ngayHocTrongTuan);</span>
+<span class="fc" id="L90">        LocalDate after  = findAfter(target, ngayHocTrongTuan);</span>
+
+        // 3. nếu before &lt; startDate → CẤM dùng → chọn after
+<span class="fc bfc" id="L93" title="All 2 branches covered.">        if (before.isBefore(startDate)) {</span>
+<span class="fc" id="L94">            return after;</span>
+        }
+
+<span class="fc" id="L97">        long distBefore = Math.abs(</span>
+<span class="fc" id="L98">                java.time.temporal.ChronoUnit.DAYS.between(target, before)</span>
+        );
+<span class="fc" id="L100">        long distAfter = Math.abs(</span>
+<span class="fc" id="L101">                java.time.temporal.ChronoUnit.DAYS.between(target, after)</span>
+        );
+
+        // 4. logic bạn đã chốt
+<span class="pc bpc" id="L105" title="1 of 2 branches missed.">        if (distBefore &lt;= distAfter) {</span>
+<span class="fc bfc" id="L106" title="All 2 branches covered.">            if (!usedDates.contains(before)) {</span>
+<span class="fc" id="L107">                return before;</span>
+            }
+<span class="fc" id="L109">            return after;</span>
+        }
+
+        // 5. ngược lại → chọn sau
+<span class="nc" id="L113">        return after;</span>
+    }
+
+
+    @Override
+    public void createStudyPlan(StudyPlanRequest studyPlanRequest) {
+<span class="fc" id="L119">        List&lt;StudyPlanEntity&gt; oldStudyPlans = studyPlanRepository.findByTrack_IdAndStudentProfile_Id(studyPlanRequest.getTrackId(), studyPlanRequest.getStudentProfileId());</span>
+<span class="fc" id="L120">        oldStudyPlans.forEach(oldStudyPlanEntity -&gt; {</span>
+<span class="fc" id="L121">            oldStudyPlanEntity.setStatus(1);</span>
+<span class="fc" id="L122">        });</span>
+<span class="fc" id="L123">        studyPlanRepository.saveAll(oldStudyPlans);</span>
+
+
+<span class="fc" id="L126">        Collections.sort(studyPlanRequest.getNgayHocTrongTuan());</span>
+<span class="fc" id="L127">        TrackEntity trackEntity = trackRepository.findById(studyPlanRequest.getTrackId()).orElseThrow(() -&gt; new RuntimeException(&quot;Track not found&quot;));</span>
+<span class="fc" id="L128">        List&lt;EnrollmentEntity&gt; enrollments = enrollmentRepository.findByTrack_IdAndStudentProfile_Id(studyPlanRequest.getTrackId(),studyPlanRequest.getStudentProfileId());</span>
+<span class="fc" id="L129">        List&lt;CourseEntity&gt; courses = getCoursesFromEnrollments(enrollments);</span>
+<span class="fc" id="L130">        List&lt;ItemWrapperLessonAndTest&gt; itemWrappers = getLessonsAndTestsFromCourses(courses);</span>
+<span class="fc" id="L131">        int soLuongLesson = soLuongLesson(courses);</span>
+<span class="fc" id="L132">        int soNgayHoc = studyPlanRequest.getSoLuongNgayHoc();</span>
+<span class="fc" id="L133">        List&lt;ItemWrapperForNgayHoc&gt; danhSachBuoiHoc = createDanhSachBaiHoc(itemWrappers,courses,soLuongLesson,soNgayHoc);</span>
+<span class="fc" id="L134">        StudyPlanEntity studyPlanEntity = CreateStudyPlanDetail(danhSachBuoiHoc,studyPlanRequest);</span>
+<span class="fc" id="L135">        studyPlanEntity.setTrack(trackEntity);</span>
+<span class="fc" id="L136">        studyPlanRepository.save(studyPlanEntity);</span>
+<span class="fc" id="L137">    }</span>
+
+    @Override
+    public StudyPlanResponse verifyInformation(StudyPlanRequest studyPlanRequest) {
+<span class="fc" id="L141">        Collections.sort(studyPlanRequest.getNgayHocTrongTuan());</span>
+<span class="fc" id="L142">        List&lt;EnrollmentEntity&gt; enrollments = enrollmentRepository.findByTrack_IdAndStudentProfile_Id(studyPlanRequest.getTrackId(),studyPlanRequest.getStudentProfileId());</span>
+<span class="fc" id="L143">        List&lt;CourseEntity&gt; courses = getCoursesFromEnrollments(enrollments);</span>
+<span class="fc" id="L144">        List&lt;ItemWrapperLessonAndTest&gt; itemWrappers = getLessonsAndTestsFromCourses(courses);</span>
+<span class="fc" id="L145">        int soLuongLesson = soLuongLesson(courses);</span>
+<span class="fc" id="L146">        int soNgayHoc = studyPlanRequest.getSoLuongNgayHoc();</span>
+<span class="fc" id="L147">        List&lt;ItemWrapperForNgayHoc&gt; danhSachBuoiHoc = createDanhSachBaiHoc(itemWrappers,courses,soLuongLesson,soNgayHoc);</span>
+<span class="fc" id="L148">        StudyPlanEntity studyPlanEntity = CreateStudyPlanDetail(danhSachBuoiHoc,studyPlanRequest);</span>
+<span class="fc" id="L149">        StudyPlanResponse studyPlanResponse = new StudyPlanResponse();</span>
+<span class="fc" id="L150">        System.out.println(DemNgay(studyPlanEntity.getStudyPlanItems()));</span>
+<span class="fc" id="L151">        studyPlanResponse.setStartDate(studyPlanRequest.getStartDate());</span>
+<span class="fc" id="L152">        studyPlanResponse.setStudentProfileId(studyPlanRequest.getStudentProfileId());</span>
+<span class="fc" id="L153">        studyPlanResponse.setTrackId(studyPlanRequest.getTrackId());</span>
+<span class="fc bfc" id="L154" title="All 2 branches covered.">        studyPlanResponse.setTongSoBuoiHoc(soLuongLesson &gt; soNgayHoc ? soNgayHoc : soLuongLesson);</span>
+<span class="fc" id="L155">        studyPlanResponse.setNgayHocTrongTuan(studyPlanRequest.getNgayHocTrongTuan());</span>
+<span class="fc" id="L156">        studyPlanResponse.setTongSoUnits(soLuongLesson);</span>
+<span class="fc" id="L157">        studyPlanResponse.setSoUnitsTrenBuoi(tinhSoUnitsTrenBuoi(danhSachBuoiHoc));</span>
+<span class="fc" id="L158">        studyPlanResponse.setNgayHoanThanh(tinhNgayHoanThanh(studyPlanEntity));</span>
+
+<span class="fc" id="L160">        return studyPlanResponse;</span>
+    }
+
+    private int DemNgay(List&lt;StudyPlanItemEntity&gt; studyPlanItems) {
+<span class="fc" id="L164">        Set&lt;LocalDate&gt; dem = new HashSet&lt;&gt;();</span>
+<span class="fc bfc" id="L165" title="All 2 branches covered.">        for (StudyPlanItemEntity studyPlanItemEntity : studyPlanItems) {</span>
+<span class="fc" id="L166">            dem.add(studyPlanItemEntity.getDate());</span>
+        }
+<span class="fc" id="L168">        return dem.size();</span>
+    }
+
+    @Override
+    public Integer checkExistStudyPlan(Integer studentId) {
+<span class="fc" id="L173">        List&lt;StudyPlanEntity&gt; studyPlanEntityList = studyPlanRepository.findByStudentProfile_Id(studentId);</span>
+<span class="pc bpc" id="L174" title="1 of 4 branches missed.">        if(studyPlanEntityList != null &amp;&amp; !studyPlanEntityList.isEmpty()){</span>
+<span class="fc bfc" id="L175" title="All 2 branches covered.">            for(StudyPlanEntity studyPlanEntity : studyPlanEntityList){</span>
+<span class="fc bfc" id="L176" title="All 2 branches covered.">                if(studyPlanEntity.getStatus() == 0){</span>
+<span class="fc" id="L177">                    return studyPlanEntity.getId();</span>
+                }
+            }
+<span class="fc" id="L180">            throw new AppException(ErrorCode.STUDYPLAN_NOT_ACTIVE);</span>
+        }else{
+<span class="fc" id="L182">            throw new AppException(ErrorCode.STUDYPLAN_NOT_FOUND);</span>
+        }
+    }
+
+    @Override
+    public InformationOfStudyPlanResponse getInformation(Integer studyPlanId) {
+<span class="pc" id="L188">        StudyPlanEntity studyPlanEntity = studyPlanRepository.findById(studyPlanId).orElseThrow(()-&gt;new AppException(ErrorCode.STUDYPLAN_NOT_FOUND));</span>
+<span class="fc" id="L189">        StudentProfileEntity studentProfile = studyPlanEntity.getStudentProfile();</span>
+<span class="fc" id="L190">        int tongSoNgay = studyPlanEntity.getSoLuongNgayHoc();</span>
+<span class="fc" id="L191">        int soNgayDaHoc = tinhSoNgayDaHoc(studyPlanEntity.getNgayHocTrongTuan(),studyPlanEntity.getStartDate());</span>
+<span class="fc" id="L192">        int soCupDaDat = 0;</span>
+<span class="fc" id="L193">        int soUnitDat2CupTroLen = 0;</span>
+<span class="fc" id="L194">        int soUnitDaHoanThanh = 0;</span>
+<span class="fc" id="L195">        int soUnitTheoKeHoach = 0;</span>
+<span class="fc" id="L196">        List&lt;StudyPlanItemResponse&gt; unitsCanHoanThanh = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L197" title="All 2 branches covered.">        for (StudyPlanItemEntity studyPlanItem : studyPlanEntity.getStudyPlanItems()){</span>
+<span class="fc bfc" id="L198" title="All 2 branches covered.">            if(!studyPlanItem.getDate().isAfter(LocalDate.now())){</span>
+<span class="fc" id="L199">                LessonEntity lesson = studyPlanItem.getLesson();</span>
+<span class="fc" id="L200">                TestEntity test = studyPlanItem.getTest();</span>
+<span class="fc bfc" id="L201" title="All 2 branches covered.">                if(lesson != null){</span>
+<span class="fc bfc" id="L202" title="All 2 branches covered.">                    if(lessonService.isCompletedLesson(lesson.getId(), studentProfile.getId())){</span>
+<span class="fc" id="L203">                        soUnitDaHoanThanh ++;</span>
+<span class="fc" id="L204">                        int completedStar = lessonService.completedStar(lesson.getId(), studentProfile.getId());</span>
+<span class="fc" id="L205">                        soCupDaDat += completedStar;</span>
+<span class="pc bpc" id="L206" title="1 of 2 branches missed.">                        if(completedStar &gt;= 2){</span>
+<span class="fc" id="L207">                            soUnitDat2CupTroLen ++;</span>
+                        }
+<span class="fc" id="L209">                    }else{</span>
+<span class="fc" id="L210">                        LessonResponse lessonResponse = new LessonResponse();</span>
+<span class="fc" id="L211">                        lessonResponse.setId(lesson.getId());</span>
+<span class="fc" id="L212">                        lessonResponse.setTitle(lesson.getTitle());</span>
+<span class="pc bpc" id="L213" title="1 of 2 branches missed.">                        if(lessonService.isLockLesson(lesson.getId(), studentProfile.getId())){</span>
+<span class="nc" id="L214">                            lessonResponse.setStatus(&quot;LOCK&quot;);</span>
+<span class="nc" id="L215">                        }else{</span>
+<span class="fc" id="L216">                            lessonResponse.setStatus(&quot;UNLOCK&quot;);</span>
+                        }
+<span class="fc" id="L218">                        List&lt;LessonResponse&gt; lessonResponses = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L219">                        lessonResponses.add(lessonResponse);</span>
+<span class="fc" id="L220">                        StudyPlanItemResponse item = StudyPlanItemResponse.builder()</span>
+<span class="fc" id="L221">                                .lessons(lessonResponses)</span>
+<span class="fc" id="L222">                                .build();</span>
+<span class="fc" id="L223">                        unitsCanHoanThanh.add(item);</span>
+                    }
+<span class="fc" id="L225">                }else{</span>
+<span class="pc bpc" id="L226" title="1 of 2 branches missed.">                    if(testService.isCompletedTest(test.getId(), studentProfile.getId())){</span>
+<span class="nc" id="L227">                        soUnitDaHoanThanh ++;</span>
+<span class="nc" id="L228">                        int completedStar = testService.commpletedStar(test.getId(), studentProfile.getId());</span>
+<span class="nc" id="L229">                        soCupDaDat += completedStar;</span>
+<span class="nc bnc" id="L230" title="All 2 branches missed.">                        if(completedStar &gt;= 2){</span>
+<span class="nc" id="L231">                            soUnitDat2CupTroLen ++;</span>
+                        }
+<span class="nc" id="L233">                    }else{</span>
+<span class="fc" id="L234">                        TestResponse testResponse = new TestResponse();</span>
+<span class="fc" id="L235">                        testResponse.setId(test.getId());</span>
+<span class="fc" id="L236">                        testResponse.setName(test.getName());</span>
+<span class="pc bpc" id="L237" title="1 of 2 branches missed.">                        if(testService.isLock(test.getId(), studentProfile.getId())){</span>
+<span class="nc" id="L238">                            testResponse.setStatus(&quot;LOCK&quot;);</span>
+<span class="nc" id="L239">                        }else{</span>
+<span class="fc" id="L240">                            testResponse.setStatus(&quot;UNLOCK&quot;);</span>
+                        }
+<span class="fc" id="L242">                        List&lt;TestResponse&gt; testResponses = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L243">                        testResponses.add(testResponse);</span>
+<span class="fc" id="L244">                        StudyPlanItemResponse item = StudyPlanItemResponse.builder()</span>
+<span class="fc" id="L245">                                .tests(testResponses)</span>
+<span class="fc" id="L246">                                .build();</span>
+<span class="fc" id="L247">                        unitsCanHoanThanh.add(item);</span>
+                    }
+                }
+<span class="fc" id="L250">                soUnitTheoKeHoach ++;</span>
+            }
+        }
+        
+
+<span class="fc" id="L255">        return InformationOfStudyPlanResponse.builder()</span>
+<span class="fc" id="L256">                .soNgayHocConLai(tongSoNgay - soNgayDaHoc)</span>
+<span class="fc" id="L257">                .soCupDaDat(soCupDaDat)</span>
+<span class="fc" id="L258">                .soUnitDat2Cup(soUnitDat2CupTroLen)</span>
+<span class="fc" id="L259">                .soUnitDaHoanThanh(soUnitDaHoanThanh)</span>
+<span class="fc" id="L260">                .soUnitTheoKeHoach(soUnitTheoKeHoach)</span>
+<span class="fc" id="L261">                .tongSoUnit(studyPlanEntity.getStudyPlanItems().size())</span>
+<span class="fc" id="L262">                .unitsCanHoanThanh(unitsCanHoanThanh)</span>
+<span class="fc" id="L263">                .build();</span>
+    }
+
+    private int tinhSoNgayDaHoc(List&lt;Integer&gt; ngayHocTrongTuan, LocalDate startDate) {
+<span class="pc bpc" id="L267" title="3 of 6 branches missed.">        if (ngayHocTrongTuan == null || ngayHocTrongTuan.isEmpty() || startDate == null) {</span>
+<span class="nc" id="L268">            return 0;</span>
+        }
+
+<span class="fc" id="L271">        LocalDate today = LocalDate.now();</span>
+
+        // Nếu startDate ở tương lai → chưa học ngày nào
+<span class="pc bpc" id="L274" title="1 of 2 branches missed.">        if (startDate.isAfter(today)) {</span>
+<span class="nc" id="L275">            return 0;</span>
+        }
+
+<span class="fc" id="L278">        int soNgayDaHoc = 0;</span>
+<span class="fc" id="L279">        LocalDate date = startDate;</span>
+
+<span class="fc bfc" id="L281" title="All 2 branches covered.">        while (!date.isAfter(today)) {</span>
+<span class="fc" id="L282">            int dayOfWeek = date.getDayOfWeek().getValue(); // 1-7 (Mon-Sun)</span>
+
+<span class="pc bpc" id="L284" title="1 of 2 branches missed.">            if (ngayHocTrongTuan.contains(dayOfWeek)) {</span>
+<span class="fc" id="L285">                soNgayDaHoc++;</span>
+            }
+
+<span class="fc" id="L288">            date = date.plusDays(1);</span>
+        }
+
+<span class="fc" id="L291">        return soNgayDaHoc;</span>
+    }
+
+
+    private LocalDate tinhNgayHoanThanh(StudyPlanEntity studyPlanEntity) {
+<span class="fc" id="L296">        LocalDate tinhNgayHoanThanh = studyPlanEntity.getStudyPlanItems().get(studyPlanEntity.getStudyPlanItems().size() -1).getDate();</span>
+<span class="fc" id="L297">        return tinhNgayHoanThanh;</span>
+    }
+
+    private String tinhSoUnitsTrenBuoi(List&lt;ItemWrapperForNgayHoc&gt; danhSachBuoiHoc) {
+<span class="fc" id="L301">        int minUints = 100;</span>
+<span class="fc" id="L302">        int maxUints = 0;</span>
+<span class="fc bfc" id="L303" title="All 2 branches covered.">        for (ItemWrapperForNgayHoc itemWrapper : danhSachBuoiHoc) {</span>
+<span class="pc bpc" id="L304" title="1 of 2 branches missed.">            if(itemWrapper.getListItemLessonAndTest().size() &lt; minUints ){</span>
+<span class="fc" id="L305">                minUints = itemWrapper.getListItemLessonAndTest().size();</span>
+            }
+<span class="pc bpc" id="L307" title="1 of 2 branches missed.">            if(itemWrapper.getListItemLessonAndTest().size() &gt; maxUints){</span>
+<span class="fc" id="L308">                maxUints = itemWrapper.getListItemLessonAndTest().size();</span>
+            }
+        }
+<span class="fc bfc" id="L311" title="All 2 branches covered.">        if(minUints == maxUints)</span>
+<span class="fc" id="L312">            return minUints + &quot;&quot;;</span>
+        else
+<span class="fc" id="L314">            return minUints + &quot;-&quot; + maxUints;</span>
+
+    }
+
+    private List&lt;ItemWrapperForNgayHoc&gt; createDanhSachBaiHoc(List&lt;ItemWrapperLessonAndTest&gt; itemWrappers, List&lt;CourseEntity&gt; courses, int soLuongLesson, int soNgayHoc) {
+<span class="fc" id="L319">        List&lt;ItemWrapperForNgayHoc&gt; studyPlan = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L320" title="All 2 branches covered.">        if(soLuongLesson &lt;= soNgayHoc){</span>
+<span class="fc bfc" id="L321" title="All 2 branches covered.">            int soLuongLessonCoppy = (soLuongLesson - 1) == 0 ? 1 : (soLuongLesson - 1);</span>
+<span class="fc" id="L322">            float khoangThoiGianGiuaCacBuoiHoc = (float) (soNgayHoc - 1) / soLuongLessonCoppy;</span>
+            //logic tạo kế hoạch học tập dựa trên khoảng thời gian giữa các buổi học
+<span class="fc" id="L324">            int khoangThoiGianChanGiua2Buoi = (int) khoangThoiGianGiuaCacBuoiHoc;</span>
+<span class="fc" id="L325">            int thoiGianDu = (soNgayHoc - 1) - (soLuongLessonCoppy * khoangThoiGianChanGiua2Buoi);</span>
+<span class="fc bfc" id="L326" title="All 2 branches covered.">            for(int i=0; i&lt; itemWrappers.size(); i++){</span>
+<span class="fc" id="L327">                ItemWrapperForNgayHoc itemWrapperForNgayHoc = new ItemWrapperForNgayHoc();</span>
+<span class="fc" id="L328">                ItemWrapperLessonAndTest lessonAndTest = itemWrappers.get(i);</span>
+
+<span class="fc" id="L330">                Deque&lt;ItemWrapperLessonAndTest&gt; listItem = new ArrayDeque&lt;&gt;();</span>
+<span class="fc" id="L331">                listItem.addFirst(lessonAndTest);</span>
+<span class="fc" id="L332">                itemWrapperForNgayHoc.setListItemLessonAndTest(listItem);</span>
+<span class="fc" id="L333">                itemWrapperForNgayHoc.setSttBuoiHoc(i);</span>
+<span class="pc bpc" id="L334" title="1 of 2 branches missed.">                if(thoiGianDu != 0){</span>
+<span class="nc" id="L335">                    itemWrapperForNgayHoc.setThoiGianDenBaiHocTiepTheo(i + khoangThoiGianChanGiua2Buoi +1);</span>
+<span class="nc" id="L336">                    thoiGianDu --;</span>
+<span class="nc" id="L337">                }else{</span>
+<span class="fc" id="L338">                    itemWrapperForNgayHoc.setThoiGianDenBaiHocTiepTheo(i + khoangThoiGianChanGiua2Buoi);</span>
+                }
+<span class="fc" id="L340">                studyPlan.add(itemWrapperForNgayHoc);</span>
+            }
+<span class="fc" id="L342">        }else{</span>
+<span class="fc" id="L343">            float thoiGianTrungBinhGiuaCacBuoiHoc = (float) createThoiGianHoc(courses) / soNgayHoc;</span>
+<span class="fc" id="L344">            int thoiGianHocCua1Buoi = 0;</span>
+<span class="fc" id="L345">            Deque&lt;ItemWrapperLessonAndTest&gt; listItem = new ArrayDeque&lt;&gt;();</span>
+<span class="fc" id="L346">            int sttBuoiHoc = 0;</span>
+<span class="fc bfc" id="L347" title="All 2 branches covered.">            for(int i=0; i&lt; itemWrappers.size(); i++){</span>
+
+
+<span class="fc" id="L350">                ItemWrapperLessonAndTest lessonAndTest = itemWrappers.get(i);</span>
+<span class="fc" id="L351">                thoiGianHocCua1Buoi += lessonAndTest.getThoiGianHoc();</span>
+<span class="fc" id="L352">                listItem.addLast(lessonAndTest);</span>
+
+<span class="fc bfc" id="L354" title="All 2 branches covered.">                if(thoiGianHocCua1Buoi &gt;=  thoiGianTrungBinhGiuaCacBuoiHoc){</span>
+
+<span class="fc" id="L356">                    ItemWrapperForNgayHoc itemWrapperForNgayHoc = new ItemWrapperForNgayHoc();</span>
+<span class="fc" id="L357">                    itemWrapperForNgayHoc.setSttBuoiHoc(sttBuoiHoc);</span>
+<span class="fc" id="L358">                    itemWrapperForNgayHoc.setListItemLessonAndTest(listItem);</span>
+<span class="fc" id="L359">                    itemWrapperForNgayHoc.setThoiGianDenBaiHocTiepTheo(1);</span>
+
+<span class="fc" id="L361">                    studyPlan.add(itemWrapperForNgayHoc);</span>
+
+<span class="fc" id="L363">                    sttBuoiHoc++;</span>
+<span class="fc" id="L364">                    thoiGianHocCua1Buoi = 0;</span>
+<span class="fc" id="L365">                    listItem = new ArrayDeque&lt;&gt;();</span>
+
+                }
+            }
+<span class="pc bpc" id="L369" title="1 of 2 branches missed.">            if(!listItem.isEmpty()){</span>
+<span class="nc" id="L370">                ItemWrapperForNgayHoc itemWrapper = ItemWrapperForNgayHoc.builder()</span>
+<span class="nc" id="L371">                        .sttBuoiHoc(sttBuoiHoc)</span>
+<span class="nc" id="L372">                        .listItemLessonAndTest(listItem)</span>
+<span class="nc" id="L373">                        .thoiGianDenBaiHocTiepTheo(1)</span>
+<span class="nc" id="L374">                        .build();</span>
+<span class="nc" id="L375">                studyPlan.add(itemWrapper);</span>
+<span class="nc" id="L376">                sttBuoiHoc++;</span>
+            }
+<span class="fc" id="L378">            int soBuoiDaCo = studyPlan.size();</span>
+<span class="fc bfc" id="L379" title="All 2 branches covered.">            for(int i = 0; i &lt; (soNgayHoc - soBuoiDaCo); i++){</span>
+<span class="fc" id="L380">                ItemWrapperForNgayHoc otherItem = ItemWrapperForNgayHoc.builder()</span>
+<span class="fc" id="L381">                        .listItemLessonAndTest(new ArrayDeque&lt;&gt;())</span>
+<span class="fc" id="L382">                        .sttBuoiHoc(sttBuoiHoc)</span>
+<span class="fc" id="L383">                        .thoiGianDenBaiHocTiepTheo(1)</span>
+<span class="fc" id="L384">                        .build();</span>
+<span class="fc" id="L385">                sttBuoiHoc++;</span>
+<span class="fc" id="L386">                studyPlan.add(otherItem);</span>
+            }
+<span class="fc" id="L388">            sapXepLaiBaiHoc(studyPlan);</span>
+        }
+<span class="fc" id="L390">        return studyPlan;</span>
+    }
+
+    private StudyPlanEntity  CreateStudyPlanDetail(List&lt;ItemWrapperForNgayHoc&gt; studyPlan, StudyPlanRequest request) {
+<span class="fc" id="L394">        StudentProfileEntity studentProfile = studentProfileRepository.findById(request.getStudentProfileId()).orElseThrow(() -&gt; new AppException(ErrorCode.STUDENT_PROFILE_NOT_FOUND));</span>
+
+<span class="fc" id="L396">        StudyPlanEntity studyPlanEntity = StudyPlanEntity.builder()</span>
+<span class="fc" id="L397">                .generatedAt(LocalDateTime.now())</span>
+<span class="fc" id="L398">                .startDate(request.getStartDate())</span>
+<span class="fc" id="L399">                .status(0)</span>
+<span class="fc" id="L400">                .soLuongNgayHoc(request.getSoLuongNgayHoc())</span>
+<span class="fc" id="L401">                .ngayHocTrongTuan(request.getNgayHocTrongTuan())</span>
+<span class="fc" id="L402">                .studentProfile(studentProfile)</span>
+<span class="fc" id="L403">                .build();</span>
+
+<span class="fc" id="L405">        List&lt;StudyPlanItemEntity&gt; items = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L406">        Set&lt;LocalDate&gt; usedDates = new HashSet&lt;&gt;();</span>
+
+<span class="fc" id="L408">        LocalDate currentDate = request.getStartDate();</span>
+
+        // đảm bảo ngày bắt đầu là ngày học hợp lệ
+<span class="pc bpc" id="L411" title="1 of 2 branches missed.">        if (!isValidStudyDate(currentDate, request.getNgayHocTrongTuan())) {</span>
+<span class="nc" id="L412">            currentDate = chooseStudyDate(</span>
+<span class="nc" id="L413">                    currentDate.minusDays(1),</span>
+<span class="nc" id="L414">                    1,</span>
+<span class="nc" id="L415">                    request.getNgayHocTrongTuan(),</span>
+<span class="nc" id="L416">                    usedDates,</span>
+<span class="nc" id="L417">                    request.getStartDate()</span>
+            );
+        }
+
+<span class="fc bfc" id="L421" title="All 2 branches covered.">        for (ItemWrapperForNgayHoc buoiHoc : studyPlan) {</span>
+
+            // tạo StudyPlanItem cho từng lesson trong buổi
+<span class="fc bfc" id="L424" title="All 2 branches covered.">            for (ItemWrapperLessonAndTest item : buoiHoc.getListItemLessonAndTest()) {</span>
+
+<span class="fc" id="L426">                StudyPlanItemEntity entity = StudyPlanItemEntity.builder()</span>
+<span class="fc" id="L427">                        .date(currentDate)</span>
+<span class="fc" id="L428">                        .slotIndex(buoiHoc.getSttBuoiHoc())</span>
+<span class="fc" id="L429">                        .status(0)</span>
+<span class="fc" id="L430">                        .studyPlan(studyPlanEntity)</span>
+<span class="fc" id="L431">                        .build();</span>
+<span class="pc bpc" id="L432" title="1 of 2 branches missed.">                if(item.getType().equals(&quot;lesson&quot;)){</span>
+<span class="fc" id="L433">                    LessonEntity lesson = lessonRepository.findById(item.getId()).orElseThrow(()-&gt; new AppException(ErrorCode.LESSON_NOT_FOUND));</span>
+<span class="fc" id="L434">                    entity.setLesson(lesson);</span>
+<span class="fc" id="L435">                }else{</span>
+<span class="pc" id="L436">                    TestEntity test = testRepository.findById(item.getId()).orElseThrow(()-&gt; new AppException(ErrorCode.TEST_NOT_FOUND));</span>
+<span class="nc" id="L437">                    entity.setTest(test);</span>
+                }
+
+<span class="fc" id="L440">                items.add(entity);</span>
+            }
+
+<span class="fc" id="L443">            usedDates.add(currentDate);</span>
+
+            // tính ngày cho buổi tiếp theo
+<span class="fc" id="L446">            currentDate = chooseStudyDate(</span>
+<span class="fc" id="L447">                    currentDate,</span>
+<span class="fc" id="L448">                    buoiHoc.getThoiGianDenBaiHocTiepTheo(),</span>
+<span class="fc" id="L449">                    request.getNgayHocTrongTuan(),</span>
+<span class="fc" id="L450">                    usedDates,</span>
+<span class="fc" id="L451">                    request.getStartDate()</span>
+            );
+        }
+
+<span class="fc" id="L455">        studyPlanEntity.setStudyPlanItems(items);</span>
+<span class="fc" id="L456">        return studyPlanEntity;</span>
+    }
+
+
+    private void sapXepLaiBaiHoc(List&lt;ItemWrapperForNgayHoc&gt; studyPlan) {
+<span class="fc" id="L461">        boolean coThayDoi = true;</span>
+
+<span class="fc bfc" id="L463" title="All 2 branches covered.">        while (coThayDoi) {</span>
+<span class="fc" id="L464">            coThayDoi = false;</span>
+
+<span class="fc bfc" id="L466" title="All 2 branches covered.">            for (int i = studyPlan.size() - 1; i &gt; 0; i--) {</span>
+
+<span class="fc" id="L468">                Deque&lt;ItemWrapperLessonAndTest&gt; dequeI = coppyDeque(studyPlan.get(i).getListItemLessonAndTest());</span>
+<span class="fc" id="L469">                Deque&lt;ItemWrapperLessonAndTest&gt; dequeJ = coppyDeque(studyPlan.get(i - 1).getListItemLessonAndTest());</span>
+
+<span class="fc" id="L471">                int timeI = tinhThoiGianBuoiHoc(dequeI);</span>
+<span class="fc" id="L472">                int timeJ = tinhThoiGianBuoiHoc(dequeJ);</span>
+<span class="fc" id="L473">                int diffBefore = Math.abs(timeI - timeJ);</span>
+
+<span class="fc" id="L475">                ItemWrapperLessonAndTest moved = new ItemWrapperLessonAndTest();</span>
+<span class="fc bfc" id="L476" title="All 2 branches covered.">                if(timeI &gt; timeJ){</span>
+<span class="fc" id="L477">                    moved = dequeI.pollFirst();</span>
+<span class="pc bpc" id="L478" title="1 of 2 branches missed.">                    if (moved == null) continue;</span>
+<span class="fc" id="L479">                    dequeJ.addLast(moved);</span>
+<span class="fc" id="L480">                }else{</span>
+<span class="fc" id="L481">                    moved = dequeJ.pollLast();</span>
+<span class="fc bfc" id="L482" title="All 2 branches covered.">                    if (moved == null) continue;</span>
+<span class="fc" id="L483">                    dequeI.addFirst(moved);</span>
+                }
+
+<span class="fc" id="L486">                int diffAfter = Math.abs(</span>
+<span class="fc" id="L487">                        tinhThoiGianBuoiHoc(dequeI) -</span>
+<span class="fc" id="L488">                                tinhThoiGianBuoiHoc(dequeJ)</span>
+                );
+
+<span class="fc bfc" id="L491" title="All 2 branches covered.">                if (diffAfter &lt; diffBefore) {</span>
+<span class="fc" id="L492">                    studyPlan.get(i).setListItemLessonAndTest(dequeI);</span>
+<span class="fc" id="L493">                    studyPlan.get(i - 1).setListItemLessonAndTest(dequeJ);</span>
+<span class="fc" id="L494">                    coThayDoi = true;</span>
+<span class="fc bfc" id="L495" title="All 4 branches covered.">                } else if ((diffAfter == diffBefore) &amp;&amp; (timeI &lt; timeJ)) {</span>
+<span class="fc" id="L496">                    studyPlan.get(i).setListItemLessonAndTest(dequeI);</span>
+<span class="fc" id="L497">                    studyPlan.get(i - 1).setListItemLessonAndTest(dequeJ);</span>
+<span class="fc" id="L498">                    coThayDoi = true;</span>
+                }
+            }
+        }
+<span class="fc" id="L502">    }</span>
+
+    private Deque&lt;ItemWrapperLessonAndTest&gt; coppyDeque(Deque&lt;ItemWrapperLessonAndTest&gt; listItemLessonAndTest) {
+<span class="fc" id="L505">        Deque&lt;ItemWrapperLessonAndTest&gt; deque = new ArrayDeque&lt;&gt;();</span>
+<span class="fc bfc" id="L506" title="All 2 branches covered.">        for (ItemWrapperLessonAndTest item : listItemLessonAndTest) {</span>
+<span class="fc" id="L507">            deque.addLast(item.coppy());</span>
+        }
+<span class="fc" id="L509">        return deque;</span>
+    }
+
+
+    private int tinhThoiGianBuoiHoc(Deque&lt;ItemWrapperLessonAndTest&gt; listItemLessonAndTest) {
+<span class="fc" id="L514">        int tongThoiGian = 0;</span>
+
+<span class="pc bpc" id="L516" title="1 of 2 branches missed.">        if (listItemLessonAndTest != null) {</span>
+<span class="fc bfc" id="L517" title="All 2 branches covered.">            for (ItemWrapperLessonAndTest item : listItemLessonAndTest) {</span>
+<span class="fc" id="L518">                tongThoiGian += item.getThoiGianHoc();</span>
+            }
+        }
+<span class="fc" id="L521">        return tongThoiGian;</span>
+    }
+
+    private  List&lt;ItemWrapperLessonAndTest&gt; getLessonsAndTestsFromCourses(List&lt;CourseEntity&gt; courseEntities) {
+<span class="fc" id="L525">        List&lt;ItemWrapperLessonAndTest&gt; itemWrappers = new ArrayList&lt;&gt;();</span>
+<span class="pc bpc" id="L526" title="1 of 2 branches missed.">        if (courseEntities != null) {</span>
+<span class="fc" id="L527">            courseEntities.forEach(course -&gt; {</span>
+<span class="pc bpc" id="L528" title="1 of 2 branches missed.">                if (course.getModules() != null) {</span>
+<span class="fc" id="L529">                    course.getModules().forEach(module -&gt; {</span>
+<span class="fc bfc" id="L530" title="All 2 branches covered.">                        if (module.getType() == ModuleType.LESSON) {</span>
+<span class="pc bpc" id="L531" title="1 of 2 branches missed.">                            if (module.getLessons() != null) {</span>
+<span class="fc" id="L532">                                module.getLessons().forEach(lesson -&gt; {</span>
+<span class="fc" id="L533">                                    ItemWrapperLessonAndTest item = new ItemWrapperLessonAndTest();</span>
+<span class="fc" id="L534">                                    item.setId(lesson.getId());</span>
+<span class="fc" id="L535">                                    item.setType(&quot;lesson&quot;);</span>
+<span class="fc" id="L536">                                    AtomicInteger thoiGianHoc = new AtomicInteger();</span>
+<span class="pc bpc" id="L537" title="1 of 2 branches missed.">                                    if(lesson.getMediaassets() != null){</span>
+<span class="fc" id="L538">                                        lesson.getMediaassets().forEach(mediaasset -&gt; {</span>
+<span class="nc bnc" id="L539" title="All 2 branches missed.">                                            if(mediaasset.getType().equals(&quot;video/mp4&quot;))</span>
+<span class="nc" id="L540">                                                thoiGianHoc.addAndGet(mediaasset.getLengthSec());</span>
+<span class="nc" id="L541">                                        });</span>
+                                    }
+<span class="fc" id="L543">                                    thoiGianHoc.addAndGet(1800);</span>
+<span class="fc" id="L544">                                    item.setThoiGianHoc(thoiGianHoc.get());</span>
+<span class="fc" id="L545">                                    itemWrappers.add(item);</span>
+<span class="fc" id="L546">                                });</span>
+                            }
+<span class="fc" id="L548">                        }else{</span>
+<span class="pc bpc" id="L549" title="1 of 2 branches missed.">                            if(module.getTests() != null){</span>
+<span class="fc" id="L550">                                module.getTests().forEach(test -&gt; {</span>
+                                    //nếu là bài test thì thêm vào danh sách
+<span class="fc" id="L552">                                    ItemWrapperLessonAndTest item = new ItemWrapperLessonAndTest();</span>
+<span class="fc" id="L553">                                    item.setId(test.getId());</span>
+<span class="fc" id="L554">                                    item.setType(&quot;test&quot;);</span>
+<span class="fc" id="L555">                                    item.setThoiGianHoc(1800);</span>
+<span class="fc" id="L556">                                    itemWrappers.add(item);</span>
+<span class="fc" id="L557">                                });</span>
+                            }
+                        }
+<span class="fc" id="L560">                    });</span>
+                }
+<span class="fc" id="L562">            });</span>
+        }
+<span class="fc" id="L564">        return itemWrappers;</span>
+    }
+
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    static class ItemWrapperForNgayHoc{
+        Deque&lt;ItemWrapperLessonAndTest&gt; listItemLessonAndTest = new ArrayDeque&lt;&gt;(); // lessonId - lesson or test
+        int sttBuoiHoc;
+        int thoiGianDenBaiHocTiepTheo;
+    }
+    @Getter
+    @Setter
+    @AllArgsConstructor
+    @NoArgsConstructor
+    @Builder
+    static class ItemWrapperLessonAndTest{
+        Integer id;
+        String type; // lesson or test
+        int thoiGianHoc;
+
+        ItemWrapperLessonAndTest coppy(){
+<span class="fc" id="L588">            ItemWrapperLessonAndTest result = new ItemWrapperLessonAndTest();</span>
+<span class="fc" id="L589">            result.setId(this.id);</span>
+<span class="fc" id="L590">            result.setType(this.type);</span>
+<span class="fc" id="L591">            result.setThoiGianHoc(this.thoiGianHoc);</span>
+<span class="fc" id="L592">            return result;</span>
+        }
+    }
+
+    private List&lt;CourseEntity&gt; getCoursesFromEnrollments(List&lt;EnrollmentEntity&gt; enrollments) {
+<span class="fc" id="L597">        List&lt;CourseEntity&gt; courses = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L598" title="All 2 branches covered.">        for (EnrollmentEntity enrollment : enrollments) {</span>
+<span class="fc" id="L599">            List&lt;EnrollmentCourseEntity&gt; enrollmentCourses = enrollment.getEnrollmentCourses();</span>
+<span class="fc bfc" id="L600" title="All 2 branches covered.">            for (EnrollmentCourseEntity enrollmentCourse : enrollmentCourses) {</span>
+<span class="fc" id="L601">                courses.add(enrollmentCourse.getCourse());</span>
+            }
+        }
+<span class="fc" id="L604">        return courses;</span>
+    }
+
+    private int soLuongLesson(List&lt;CourseEntity&gt; courseEntities) {
+<span class="fc" id="L608">        AtomicInteger lessonCount = new AtomicInteger(0);</span>
+<span class="pc bpc" id="L609" title="1 of 2 branches missed.">        if (courseEntities != null) {</span>
+<span class="fc" id="L610">            courseEntities.forEach(course -&gt; {</span>
+<span class="pc bpc" id="L611" title="1 of 2 branches missed.">                if (course.getModules() != null) {</span>
+<span class="fc" id="L612">                    course.getModules().forEach(module -&gt; {</span>
+<span class="fc bfc" id="L613" title="All 2 branches covered.">                        if (module.getType() == ModuleType.LESSON) {</span>
+<span class="pc bpc" id="L614" title="1 of 2 branches missed.">                            if (module.getLessons() != null) {</span>
+<span class="fc" id="L615">                                lessonCount.addAndGet(module.getLessons().size());</span>
+                            }
+<span class="fc" id="L617">                        }else{</span>
+                            //nếu là bài test thì tính là 1 lesson
+<span class="pc bpc" id="L619" title="1 of 2 branches missed.">                            if(module.getTests() != null){</span>
+<span class="fc" id="L620">                                lessonCount.addAndGet(module.getTests().size());</span>
+                            }
+
+                        }
+<span class="fc" id="L624">                    });</span>
+                }
+<span class="fc" id="L626">            });</span>
+        }
+<span class="fc" id="L628">        return lessonCount.get();</span>
+    }
+    private int createThoiGianHoc(List&lt;CourseEntity&gt; courseEntities) {
+<span class="fc" id="L631">        AtomicInteger totalSec = new AtomicInteger(0);</span>
+
+<span class="pc bpc" id="L633" title="1 of 2 branches missed.">        if (courseEntities != null) {</span>
+<span class="fc" id="L634">            courseEntities.forEach(course -&gt; {</span>
+<span class="pc bpc" id="L635" title="1 of 2 branches missed.">                if (course.getModules() != null) {</span>
+<span class="fc" id="L636">                    course.getModules().forEach(module -&gt; {</span>
+<span class="pc bpc" id="L637" title="1 of 2 branches missed.">                        if(module.getType() == ModuleType.LESSON){</span>
+<span class="pc bpc" id="L638" title="1 of 2 branches missed.">                            if (module.getLessons() != null) {</span>
+<span class="fc" id="L639">                                module.getLessons().forEach(lesson -&gt; {</span>
+<span class="pc bpc" id="L640" title="1 of 2 branches missed.">                                    if (lesson.getMediaassets() != null) {</span>
+<span class="fc" id="L641">                                        lesson.getMediaassets().forEach(media -&gt; {</span>
+<span class="nc" id="L642">                                            Integer length = media.getLengthSec();</span>
+<span class="nc bnc" id="L643" title="All 2 branches missed.">                                            if (length != null) {</span>
+<span class="nc" id="L644">                                                totalSec.addAndGet(length);</span>
+                                            }
+
+<span class="nc" id="L647">                                        });</span>
+                                    }
+<span class="fc" id="L649">                                    totalSec.addAndGet(1800); // Thêm 30 phút (1800 giây) cho mỗi bài học</span>
+<span class="fc" id="L650">                                });</span>
+
+                            }
+<span class="fc" id="L653">                        }else{</span>
+                            //nếu là bài test thì tính 30 phút
+<span class="nc" id="L655">                            totalSec.addAndGet(1800);</span>
+                        }
+
+<span class="fc" id="L658">                    });</span>
+                }
+<span class="fc" id="L660">            });</span>
+        }
+<span class="fc" id="L662">        return totalSec.get();</span>
+    }
+
+    int soNgayHocTieuChuan(List&lt;CourseEntity&gt; courseEntities){
+<span class="fc" id="L666">        int tongThoiGianHoc = createThoiGianHoc(courseEntities);</span>
+<span class="fc" id="L667">        int soNgay = (int)Math.ceil((float)tongThoiGianHoc/(2 * 3600)); // Giả sử mỗi ngày học 2 giờ (7200 giây)</span>
+<span class="fc" id="L668">        return  soNgay;</span>
+    }
+
+    @Override
+    public int soNgayHocToiThieu(Integer trackId, Integer studentId){
+<span class="fc" id="L673">        TrackEntity trackEntity = trackRepository.findById(trackId).orElseThrow(() -&gt; new RuntimeException(&quot;Track not found&quot;));</span>
+
+<span class="fc" id="L675">        List&lt;EnrollmentEntity&gt; enrollments = enrollmentRepository.findByTrack_IdAndStudentProfile_Id(trackId,studentId);</span>
+<span class="fc" id="L676">        List&lt;CourseEntity&gt; courses = getCoursesFromEnrollments(enrollments);</span>
+
+<span class="fc" id="L678">        int tongThoiGianHoc = createThoiGianHoc(courses);</span>
+<span class="fc" id="L679">        int soNgay = (int)Math.ceil((float)tongThoiGianHoc/(8 * 3600)); // Giả sử mỗi ngày học 8 giờ (28800 giây)</span>
+<span class="fc" id="L680">        return  soNgay;</span>
+    }
+
+    @Override
+    public StudyPlanResponse getStudyPlanDetail(Integer studyPlanId) {
+<span class="fc" id="L685">        StudyPlanEntity studyPlanEntity = studyPlanRepository.findById(studyPlanId).orElseThrow(() -&gt; new AppException(ErrorCode.STUDYPLAN_NOT_FOUND));</span>
+<span class="fc" id="L686">        System.out.println(DemNgay(studyPlanEntity.getStudyPlanItems()));</span>
+<span class="fc" id="L687">        StudyPlanResponse response = studyPlanConverter.toResponseSummery(studyPlanEntity);</span>
+<span class="fc" id="L688">        List&lt;StudyPlanItemResponse&gt; studyPlanItemResponses = getStudyPlanItemDetail(studyPlanEntity.getStudyPlanItems(), studyPlanEntity.getStudentProfile().getId());</span>
+<span class="fc" id="L689">        response.setStudyPlanItems(studyPlanItemResponses);</span>
+<span class="fc" id="L690">        return response;</span>
+    }
+
+    private List&lt;StudyPlanItemResponse&gt; getStudyPlanItemDetail(List&lt;StudyPlanItemEntity&gt; studyPlanItems, Integer studentId) {
+<span class="fc" id="L694">        List&lt;StudyPlanItemResponse&gt; studyPlanItemResponses = new ArrayList&lt;&gt;();</span>
+<span class="pc bpc" id="L695" title="1 of 4 branches missed.">        if(studyPlanItems != null &amp;&amp; !studyPlanItems.isEmpty()){</span>
+<span class="fc" id="L696">            List&lt;LessonResponse&gt; lessonResponses = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L697">            List&lt;TestResponse&gt; testResponses = new ArrayList&lt;&gt;();</span>
+<span class="fc bfc" id="L698" title="All 2 branches covered.">            if(studyPlanItems.get(0).getLesson() != null){</span>
+<span class="fc" id="L699">                lessonResponses.add(getLessonResponseForItem(studyPlanItems.get(0).getLesson(), studentId));</span>
+<span class="fc" id="L700">            }else{</span>
+<span class="fc" id="L701">                testResponses.add(getTestReposeForItem(studyPlanItems.get(0).getTest(),studentId));</span>
+            }
+
+<span class="fc" id="L704">            LocalDate date = studyPlanItems.get(0).getDate();</span>
+
+<span class="fc bfc" id="L706" title="All 2 branches covered.">            for(int i = 1;i&lt;studyPlanItems.size();i++){</span>
+<span class="fc" id="L707">                StudyPlanItemEntity studyPlanItem = studyPlanItems.get(i);</span>
+<span class="fc bfc" id="L708" title="All 2 branches covered.">                if(studyPlanItem.getDate().equals(date)){</span>
+<span class="pc bpc" id="L709" title="1 of 2 branches missed.">                    if(studyPlanItem.getLesson() != null){</span>
+<span class="nc" id="L710">                        lessonResponses.add(getLessonResponseForItem(studyPlanItem.getLesson(), studentId));</span>
+<span class="nc" id="L711">                    }else{</span>
+<span class="fc" id="L712">                        testResponses.add(getTestReposeForItem(studyPlanItem.getTest(),studentId));</span>
+                    }
+
+<span class="fc" id="L715">                }else{</span>
+<span class="fc" id="L716">                    StudyPlanItemResponse itemResponse = StudyPlanItemResponse.builder()</span>
+<span class="fc" id="L717">                            .date(date)</span>
+<span class="fc" id="L718">                            .type(&quot;LESSON&quot;)</span>
+<span class="fc" id="L719">                            .lessons(lessonResponses)</span>
+<span class="fc" id="L720">                            .tests(testResponses)</span>
+<span class="fc" id="L721">                            .build();</span>
+<span class="fc" id="L722">                    studyPlanItemResponses.add(itemResponse);</span>
+<span class="fc" id="L723">                    date = studyPlanItem.getDate();</span>
+<span class="fc" id="L724">                    lessonResponses = new ArrayList&lt;&gt;();</span>
+<span class="fc" id="L725">                    testResponses = new ArrayList&lt;&gt;();</span>
+<span class="pc bpc" id="L726" title="1 of 2 branches missed.">                    if(studyPlanItem.getLesson() != null){</span>
+<span class="fc" id="L727">                        lessonResponses.add(getLessonResponseForItem(studyPlanItem.getLesson(), studentId));</span>
+<span class="fc" id="L728">                    }else{</span>
+<span class="nc" id="L729">                        testResponses.add(getTestReposeForItem(studyPlanItem.getTest(),studentId));</span>
+                    }
+                }
+            }
+<span class="fc" id="L733">            StudyPlanItemResponse itemResponse = StudyPlanItemResponse.builder()</span>
+<span class="fc" id="L734">                    .date(date)</span>
+<span class="fc" id="L735">                    .lessons(lessonResponses)</span>
+<span class="fc" id="L736">                    .tests(testResponses)</span>
+<span class="fc" id="L737">                    .build();</span>
+<span class="fc" id="L738">            studyPlanItemResponses.add(itemResponse);</span>
+        }
+<span class="fc" id="L740">        return studyPlanItemResponses;</span>
+    }
+
+    private TestResponse getTestReposeForItem(TestEntity test, Integer studentId) {
+        String status;
+<span class="fc" id="L745">        boolean isLock = testService.isLock(test.getId(),studentId);</span>
+<span class="fc" id="L746">        boolean isCompleted = testService.isCompletedTest(test.getId(),studentId);</span>
+<span class="fc bfc" id="L747" title="All 2 branches covered.">        if(isLock){</span>
+<span class="fc" id="L748">            status = &quot;LOCK&quot;;</span>
+<span class="fc" id="L749">        }else{</span>
+<span class="pc bpc" id="L750" title="1 of 2 branches missed.">            if (isCompleted){</span>
+<span class="nc" id="L751">                status = &quot;DONE&quot;;</span>
+<span class="nc" id="L752">            }else{</span>
+<span class="fc" id="L753">                status = &quot;UNLOCK&quot;;</span>
+            }
+        }
+<span class="fc" id="L756">        return TestResponse.builder()</span>
+<span class="fc" id="L757">                .id(test.getId())</span>
+<span class="fc" id="L758">                .name(test.getName())</span>
+<span class="fc" id="L759">                .type(test.getType())</span>
+<span class="fc" id="L760">                .status(status)</span>
+<span class="fc" id="L761">                .build();</span>
+    }
+
+    private LessonResponse getLessonResponseForItem(LessonEntity lesson, Integer studentId) {
+        String status;
+<span class="fc" id="L766">        Boolean isLock = lessonService.isLockLesson(lesson.getId(),studentId);</span>
+<span class="fc" id="L767">        Boolean isCompleted = lessonService.isCompletedLesson(lesson.getId(),studentId);</span>
+<span class="pc bpc" id="L768" title="1 of 2 branches missed.">        if(isLock){</span>
+<span class="nc" id="L769">            status = &quot;LOCK&quot;;</span>
+<span class="nc" id="L770">        }else{</span>
+<span class="fc bfc" id="L771" title="All 2 branches covered.">            if (isCompleted){</span>
+<span class="fc" id="L772">                status = &quot;DONE&quot;;</span>
+<span class="fc" id="L773">            }else{</span>
+<span class="fc" id="L774">                status = &quot;UNLOCK&quot;;</span>
+            }
+        }
+<span class="fc" id="L777">        return LessonResponse.builder()</span>
+<span class="fc" id="L778">                .id(lesson.getId())</span>
+<span class="fc" id="L779">                .title(lesson.getTitle())</span>
+<span class="fc" id="L780">                .completedStar(lessonService.completedStar(lesson.getId(),studentId))</span>
+<span class="fc" id="L781">                .status(status)</span>
+<span class="fc" id="L782">                .build();</span>
+    }
+
+
+    private String createDauRa(TrackEntity trackEntity) {
+<span class="pc bpc" id="L787" title="2 of 3 branches missed.">        switch (trackEntity.getCode()){</span>
+            case &quot;0-300&quot;:
+<span class="fc" id="L789">                return &quot;TOEIC LR 0-300&quot;;</span>
+            case &quot;300-600&quot;:
+<span class="nc" id="L791">                return &quot;TOEIC LR 300-600&quot;;</span>
+            default:
+<span class="nc" id="L793">                return &quot;TOEIC LR 600+&quot;;</span>
+        }
+    }
+
+    private String createOverview(List&lt;CourseEntity&gt; courseEntities) {
+<span class="pc bpc" id="L798" title="2 of 4 branches missed.">        if (courseEntities == null || courseEntities.isEmpty()) {</span>
+<span class="fc" id="L799">            return &quot;Chưa có khóa học nào trong track này.&quot;;</span>
+        }
+<span class="nc" id="L801">        return courseEntities.stream()</span>
+<span class="nc" id="L802">                .map(courseEntity -&gt; courseEntity.getTitle())</span>
+<span class="nc" id="L803">                .collect(Collectors.joining(&quot;, &quot;));</span>
+    }
+
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

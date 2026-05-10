@@ -1,0 +1,60 @@
+-------------------------------------------------------------------------------
+Test set: com.mxhieu.doantotnghiep.service.impl.LessonServiceImplTest
+-------------------------------------------------------------------------------
+Tests run: 14, Failures: 3, Errors: 1, Skipped: 0, Time elapsed: 0.172 s <<< FAILURE! -- in com.mxhieu.doantotnghiep.service.impl.LessonServiceImplTest
+com.mxhieu.doantotnghiep.service.impl.LessonServiceImplTest.getNextLessonOrTest_WhenCourseModulesIsNull_ShouldThrowAppException -- Time elapsed: 0.015 s <<< FAILURE!
+java.lang.AssertionError: 
+
+Expecting actual throwable to be an instance of:
+  com.mxhieu.doantotnghiep.exception.AppException
+but was:
+  java.lang.NullPointerException: Cannot invoke "java.util.List.iterator()" because the return value of "com.mxhieu.doantotnghiep.entity.CourseEntity.getModules()" is null
+	at com.mxhieu.doantotnghiep.service.impl.LessonServiceImpl.buildItemList(LessonServiceImpl.java:189)
+	at com.mxhieu.doantotnghiep.service.impl.LessonServiceImpl.getNextLessonOrTest(LessonServiceImpl.java:127)
+	at com.mxhieu.doantotnghiep.service.impl.LessonServiceImplTest.lambda$3(LessonServiceImplTest.java:353)
+	...(76 remaining lines not displayed - this can be changed with Assertions.setMaxStackTraceElementsDisplayed)
+	at com.mxhieu.doantotnghiep.service.impl.LessonServiceImplTest.getNextLessonOrTest_WhenCourseModulesIsNull_ShouldThrowAppException(LessonServiceImplTest.java:352)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
+com.mxhieu.doantotnghiep.service.impl.LessonServiceImplTest.completedStar_WhenExercisesIsNullAndCompleted_ShouldReturn3 -- Time elapsed: 0.011 s <<< ERROR!
+java.lang.NullPointerException: Cannot invoke "java.util.List.isEmpty()" because the return value of "com.mxhieu.doantotnghiep.entity.LessonEntity.getExercises()" is null
+	at com.mxhieu.doantotnghiep.service.impl.LessonServiceImpl.completedStar(LessonServiceImpl.java:85)
+	at com.mxhieu.doantotnghiep.service.impl.LessonServiceImplTest.completedStar_WhenExercisesIsNullAndCompleted_ShouldReturn3(LessonServiceImplTest.java:234)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
+com.mxhieu.doantotnghiep.service.impl.LessonServiceImplTest.getNextLessonOrTest_WhenTypeInvalid_ShouldThrowAppException -- Time elapsed: 0.007 s <<< FAILURE!
+java.lang.AssertionError: 
+
+Expecting actual throwable to be an instance of:
+  com.mxhieu.doantotnghiep.exception.AppException
+but was:
+  java.lang.NullPointerException: Cannot invoke "com.mxhieu.doantotnghiep.entity.CourseEntity.getModules()" because "course" is null
+	at com.mxhieu.doantotnghiep.service.impl.LessonServiceImpl.buildItemList(LessonServiceImpl.java:189)
+	at com.mxhieu.doantotnghiep.service.impl.LessonServiceImpl.getNextLessonOrTest(LessonServiceImpl.java:127)
+	at com.mxhieu.doantotnghiep.service.impl.LessonServiceImplTest.lambda$1(LessonServiceImplTest.java:311)
+	...(76 remaining lines not displayed - this can be changed with Assertions.setMaxStackTraceElementsDisplayed)
+	at com.mxhieu.doantotnghiep.service.impl.LessonServiceImplTest.getNextLessonOrTest_WhenTypeInvalid_ShouldThrowAppException(LessonServiceImplTest.java:310)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
+com.mxhieu.doantotnghiep.service.impl.LessonServiceImplTest.getPreviousLessonID_WhenTypeIsNull_ShouldThrowAppException -- Time elapsed: 0.007 s <<< FAILURE!
+java.lang.AssertionError: 
+
+Expecting actual throwable to be an instance of:
+  com.mxhieu.doantotnghiep.exception.AppException
+but was:
+  java.lang.NullPointerException: Cannot invoke "String.equals(Object)" because the return value of "com.mxhieu.doantotnghiep.dto.request.LessonOrTestAroundRequest.getType()" is null
+	at com.mxhieu.doantotnghiep.service.impl.LessonServiceImpl.getPreviousLessonID(LessonServiceImpl.java:153)
+	at com.mxhieu.doantotnghiep.service.impl.LessonServiceImplTest.lambda$2(LessonServiceImplTest.java:331)
+	at org.assertj.core.api.ThrowableAssert.catchThrowable(ThrowableAssert.java:63)
+	...(75 remaining lines not displayed - this can be changed with Assertions.setMaxStackTraceElementsDisplayed)
+	at com.mxhieu.doantotnghiep.service.impl.LessonServiceImplTest.getPreviousLessonID_WhenTypeIsNull_ShouldThrowAppException(LessonServiceImplTest.java:330)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+

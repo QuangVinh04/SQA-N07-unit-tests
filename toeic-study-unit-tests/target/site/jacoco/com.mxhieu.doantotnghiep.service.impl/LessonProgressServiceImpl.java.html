@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="UTF-8"?><!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en"><head><meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/><link rel="stylesheet" href="../jacoco-resources/report.css" type="text/css"/><link rel="shortcut icon" href="../jacoco-resources/report.gif" type="image/gif"/><title>LessonProgressServiceImpl.java</title><link rel="stylesheet" href="../jacoco-resources/prettify.css" type="text/css"/><script type="text/javascript" src="../jacoco-resources/prettify.js"></script></head><body onload="window['PR_TAB_WIDTH']=4;prettyPrint()"><div class="breadcrumb" id="breadcrumb"><span class="info"><a href="../jacoco-sessions.html" class="el_session">Sessions</a></span><a href="../index.html" class="el_report">TOEIC Study Unit Tests</a> &gt; <a href="index.source.html" class="el_package">com.mxhieu.doantotnghiep.service.impl</a> &gt; <span class="el_source">LessonProgressServiceImpl.java</span></div><h1>LessonProgressServiceImpl.java</h1><pre class="source lang-java linenums">package com.mxhieu.doantotnghiep.service.impl;
+
+import com.mxhieu.doantotnghiep.dto.request.LessonOrTestAroundRequest;
+import com.mxhieu.doantotnghiep.dto.request.LessonProgressRequest;
+import com.mxhieu.doantotnghiep.dto.response.LessonOrTestAroundResponse;
+import com.mxhieu.doantotnghiep.entity.*;
+import com.mxhieu.doantotnghiep.exception.AppException;
+import com.mxhieu.doantotnghiep.exception.ErrorCode;
+import com.mxhieu.doantotnghiep.repository.*;
+import com.mxhieu.doantotnghiep.service.LessonProgressService;
+import com.mxhieu.doantotnghiep.service.LessonService;
+import lombok.RequiredArgsConstructor;
+import org.springframework.stereotype.Service;
+
+import java.util.List;
+
+@Service
+@RequiredArgsConstructor
+public class LessonProgressServiceImpl implements LessonProgressService {
+    private final LessonProgressRepository lessonProgressRepository;
+    private final LessonRepository lessonRepository;
+    private final StudentProfileRepository studentProfileRepository;
+    private final AttemptRepository attemptRepository;
+    private final TestRepository testRepository;
+    private final TestProgressRepository testProgressRepository;
+    private final ExerciseRepository exerciseRepository;
+    private final LessonService lessonService;
+    private final CourseRepository courseRepository;
+    private final EnrollmentCourseRepository enrollmentCourseRepository;
+    private final EnrollmentRepository enrollmentRepository;
+    private final TrackRepository trackRepository;
+
+
+    @Override
+    public Boolean checkCompletionCondition(LessonProgressRequest request) {
+<span class="fc" id="L36">        LessonEntity lessonEntity = lessonRepository.findById(request.getLessonId()).orElseThrow(()-&gt;new AppException(ErrorCode.LESSON_NOT_FOUND));</span>
+<span class="fc" id="L37">        StudentProfileEntity studentProfileEntity = studentProfileRepository.findById(request.getStudentProfileId()).orElseThrow(()-&gt;new AppException(ErrorCode.STUDENT_PROFILE_NOT_FOUND));</span>
+<span class="fc" id="L38">        List&lt;LessonProgressEntity&gt; lessonProgressEntity = lessonProgressRepository.findByLesson_IdAndStudentProfile_Id(request.getLessonId(), request.getStudentProfileId());</span>
+
+<span class="fc bfc" id="L40" title="All 2 branches covered.">        if(!lessonProgressEntity.isEmpty()){</span>
+<span class="fc" id="L41">            LessonProgressEntity lessonProgress = lessonProgressEntity.get(0);</span>
+<span class="fc bfc" id="L42" title="All 2 branches covered.">            if(lessonProgress.getPercentageWatched() &lt; request.getPercentageWatched()){</span>
+<span class="fc" id="L43">                lessonProgress.setPercentageWatched(request.getPercentageWatched());</span>
+            }
+<span class="fc bfc" id="L45" title="All 2 branches covered.">            if(checkCompleted(lessonProgress ,lessonEntity, request)){</span>
+<span class="fc" id="L46">                lessonProgress.setProcess(2);</span>
+<span class="fc" id="L47">                unLockNextLesson(lessonEntity, studentProfileEntity);</span>
+<span class="fc" id="L48">                lessonProgressRepository.save(lessonProgress);</span>
+<span class="fc" id="L49">                return true;</span>
+            } else {
+<span class="fc" id="L51">                lessonProgress.setProcess(1);</span>
+<span class="fc" id="L52">                lessonProgressRepository.save(lessonProgress);</span>
+<span class="fc" id="L53">                return false;</span>
+            }
+        }else{
+<span class="fc" id="L56">            throw new AppException(ErrorCode.LESSON_PROGRESS_NOT_EXISTS);</span>
+        }
+    }
+
+    private void unLockNextLesson(LessonEntity lessonEntity, StudentProfileEntity studentProfileEntity) {
+<span class="fc" id="L61">        LessonOrTestAroundRequest request = new LessonOrTestAroundRequest(lessonEntity.getId(),&quot;LESSON&quot;);</span>
+        try{
+<span class="fc" id="L63">            LessonOrTestAroundResponse nextLessonOrTest= lessonService.getNextLessonOrTest(request);</span>
+<span class="fc bfc" id="L64" title="All 2 branches covered.">            if(nextLessonOrTest.getType().equals(&quot;LESSON&quot;)){</span>
+<span class="fc" id="L65">                LessonEntity nextLesson = lessonRepository.findById(nextLessonOrTest.getId()).orElseThrow(()-&gt;new AppException(ErrorCode.LESSON_NOT_FOUND));</span>
+<span class="fc" id="L66">                List&lt;LessonProgressEntity&gt; lessonProgressEntities = lessonProgressRepository.findByLesson_IdAndStudentProfile_Id(nextLesson.getId(), studentProfileEntity.getId());</span>
+<span class="pc bpc" id="L67" title="1 of 2 branches missed.">                if(lessonProgressEntities.isEmpty()){</span>
+<span class="fc" id="L68">                    LessonProgressEntity lessonProgressEntity = new LessonProgressEntity();</span>
+<span class="fc" id="L69">                    lessonProgressEntity.setLesson(nextLesson);</span>
+<span class="fc" id="L70">                    lessonProgressEntity.setStudentProfile(studentProfileEntity);</span>
+<span class="fc" id="L71">                    lessonProgressEntity.setProcess(0); // unlock</span>
+<span class="fc" id="L72">                    lessonProgressEntity.setPercentageWatched(0);</span>
+<span class="fc" id="L73">                    lessonProgressRepository.save(lessonProgressEntity);</span>
+                }
+<span class="fc" id="L75">            }else{</span>
+<span class="pc" id="L76">                TestEntity nextTest = testRepository.findById(nextLessonOrTest.getId()).orElseThrow(()-&gt;new AppException(ErrorCode.TEST_NOT_FOUND));</span>
+<span class="fc" id="L77">                List&lt;TestProgressEntity&gt; testProgressEntities = testProgressRepository.findByTest_IdAndStudentProfile_Id(nextTest.getId(), studentProfileEntity.getId());</span>
+<span class="pc bpc" id="L78" title="1 of 2 branches missed.">                if(testProgressEntities.isEmpty()){</span>
+<span class="fc" id="L79">                    TestProgressEntity testProgressEntity = new TestProgressEntity();</span>
+<span class="fc" id="L80">                    testProgressEntity.setTest(nextTest);</span>
+<span class="fc" id="L81">                    testProgressEntity.setStudentProfile(studentProfileEntity);</span>
+<span class="fc" id="L82">                    testProgressEntity.setProcess(0); // unlock</span>
+<span class="fc" id="L83">                    testProgressRepository.save(testProgressEntity);</span>
+                }
+            }
+<span class="fc" id="L86">        }catch (AppException e){</span>
+<span class="fc" id="L87">            System.out.println(&quot;Loi o day&quot;);</span>
+<span class="fc" id="L88">            e.printStackTrace();</span>
+<span class="fc" id="L89">            unLockNextCourse(lessonEntity.getModule().getCourse(), studentProfileEntity);</span>
+        }
+<span class="fc" id="L91">    }</span>
+
+    @Override
+    public void unLockNextCourse(CourseEntity course, StudentProfileEntity studentProfileEntity) {
+<span class="fc" id="L95">        setStatusCourse(course,studentProfileEntity,&quot;DONE&quot;);</span>
+        try{
+<span class="fc" id="L97">            List&lt;EnrollmentCourseEntity&gt; enrollmentCourseEntities = enrollmentCourseRepository.findByCourse_IdAndEnrollment_StudentProfile_Id(course.getId(), studentProfileEntity.getId());</span>
+
+<span class="pc bpc" id="L99" title="1 of 2 branches missed.">            if(!enrollmentCourseEntities.isEmpty()){</span>
+<span class="fc" id="L100">                EnrollmentCourseEntity currentEnrollmentCourse = enrollmentCourseEntities.get(0);</span>
+<span class="fc" id="L101">                EnrollmentCourseEntity nextEnrollmentCourse = enrollmentCourseRepository.findTopByIdAfterAndEnrollment_Id(currentEnrollmentCourse.getId(),currentEnrollmentCourse.getEnrollment().getId()).orElseThrow(() -&gt;new AppException(ErrorCode.NEXT_NOT_FOUND));</span>
+<span class="fc" id="L102">                setStatusCourse(nextEnrollmentCourse.getCourse(),studentProfileEntity,&quot;UNLOCK&quot;);</span>
+            }
+<span class="fc" id="L104">        }catch (AppException e){</span>
+<span class="fc" id="L105">            unLockNextTrack(course.getTrack(), studentProfileEntity);</span>
+        }
+<span class="fc" id="L107">    }</span>
+
+    private void setStatusCourse(CourseEntity course, StudentProfileEntity studentProfileEntity, String status) {
+<span class="fc" id="L110">        List&lt;EnrollmentCourseEntity&gt; enrollmentCourseEntities = enrollmentCourseRepository.findByCourse_IdAndEnrollment_StudentProfile_Id(course.getId(), studentProfileEntity.getId());</span>
+<span class="pc bpc" id="L111" title="1 of 2 branches missed.">        if(!enrollmentCourseEntities.isEmpty()){</span>
+
+<span class="fc" id="L113">            EnrollmentCourseEntity enrollmentCourseEntity = enrollmentCourseEntities.get(0);</span>
+<span class="pc bpc" id="L114" title="1 of 2 branches missed.">            if(!enrollmentCourseEntity.getStatus().equals(&quot;DONE&quot;)){</span>
+<span class="fc" id="L115">                enrollmentCourseEntity.setStatus(status);</span>
+<span class="fc" id="L116">                enrollmentCourseRepository.save(enrollmentCourseEntity);</span>
+            }
+        }
+<span class="fc" id="L119">    }</span>
+
+    @Override
+    public void unLockNextTrack(TrackEntity trackEntity, StudentProfileEntity studentProfileEntity) {
+<span class="fc" id="L123">        setStatusTrack(trackEntity,studentProfileEntity,2);</span>
+        try {
+<span class="fc" id="L125">            TrackEntity nextTrack = trackRepository.findById(trackEntity.getId() + 1).orElseThrow(()-&gt;new AppException(ErrorCode.TRACK_NOT_FOUND));</span>
+<span class="fc" id="L126">            setStatusTrack(nextTrack,studentProfileEntity,1);</span>
+<span class="fc" id="L127">        }catch (AppException e){</span>
+
+        }
+<span class="fc" id="L130">    }</span>
+
+    private void setStatusTrack(TrackEntity trackEntity, StudentProfileEntity studentProfileEntity, int status) {
+<span class="fc" id="L133">        List&lt;EnrollmentEntity&gt; enrollmentEntities = enrollmentRepository.findByTrack_IdAndStudentProfile_Id(trackEntity.getId(), studentProfileEntity.getId());</span>
+<span class="fc bfc" id="L134" title="All 2 branches covered.">        if(!enrollmentEntities.isEmpty()){</span>
+<span class="fc" id="L135">            EnrollmentEntity enrollmentEntity = enrollmentEntities.get(0);</span>
+<span class="fc bfc" id="L136" title="All 2 branches covered.">            if(!enrollmentEntity.getStatus().equals(2)){</span>
+<span class="fc" id="L137">                enrollmentEntity.setStatus(status);</span>
+<span class="fc" id="L138">                enrollmentRepository.save(enrollmentEntity);</span>
+            }
+
+        }
+<span class="fc" id="L142">    }</span>
+
+    private boolean checkCompleted(LessonProgressEntity lessonProgress, LessonEntity lessonEntity, LessonProgressRequest request) {
+<span class="fc" id="L145">        Integer percentageWatched = lessonProgress.getPercentageWatched();</span>
+
+<span class="fc bfc" id="L147" title="All 2 branches covered.">        if(percentageWatched &lt; lessonEntity.getGatingRules()){</span>
+<span class="fc" id="L148">            return false;</span>
+        }
+<span class="fc bfc" id="L150" title="All 2 branches covered.">        if(lessonEntity.getExercises().size() == 0){</span>
+<span class="fc" id="L151">            return true;</span>
+        }else{
+<span class="fc bfc" id="L153" title="All 2 branches covered.">            for (ExerciseEntity exercise : lessonEntity.getExercises()) {</span>
+<span class="fc bfc" id="L154" title="All 2 branches covered.">                if(!exerciseRepository.isExerciseCompletedByStudent(exercise.getId(), request.getStudentProfileId())){</span>
+<span class="fc" id="L155">                    return false;</span>
+                }
+            }
+<span class="fc" id="L158">            return true;</span>
+        }
+
+    }
+}
+</pre><div class="footer"><span class="right">Created with <a href="http://www.jacoco.org/jacoco">JaCoCo</a> 0.8.11.202310140853</span></div></body></html>

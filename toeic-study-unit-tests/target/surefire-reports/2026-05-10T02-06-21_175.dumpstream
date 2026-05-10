@@ -1,0 +1,5 @@
+# Created at 2026-05-10T02:06:21.490
+Boot Manifest-JAR contains absolute paths in classpath 'D:\Ki_2_nam_4\SQA\project\do_an_tot_nghiep_final\toeic-study-unit-tests\target\test-classes'
+Hint: <argLine>-Djdk.net.URLClassPath.disableClassPathURLCheck=true</argLine>
+'other' has different root
+

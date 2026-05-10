@@ -1,0 +1,74 @@
+-------------------------------------------------------------------------------
+Test set: com.mxhieu.doantotnghiep.service.impl.StudyPlanServiceImplTest
+-------------------------------------------------------------------------------
+Tests run: 32, Failures: 4, Errors: 1, Skipped: 0, Time elapsed: 0.819 s <<< FAILURE! -- in com.mxhieu.doantotnghiep.service.impl.StudyPlanServiceImplTest
+com.mxhieu.doantotnghiep.service.impl.StudyPlanServiceImplTest.verifyInformation_WhenTrackHasNoUnits_ShouldReturnEmptySummary -- Time elapsed: 0.024 s <<< ERROR!
+java.lang.IndexOutOfBoundsException: Index -1 out of bounds for length 0
+	at java.base/jdk.internal.util.Preconditions.outOfBounds(Preconditions.java:64)
+	at java.base/jdk.internal.util.Preconditions.outOfBoundsCheckIndex(Preconditions.java:70)
+	at java.base/jdk.internal.util.Preconditions.checkIndex(Preconditions.java:266)
+	at java.base/java.util.Objects.checkIndex(Objects.java:359)
+	at java.base/java.util.ArrayList.get(ArrayList.java:427)
+	at com.mxhieu.doantotnghiep.service.impl.StudyPlanServiceImpl.tinhNgayHoanThanh(StudyPlanServiceImpl.java:296)
+	at com.mxhieu.doantotnghiep.service.impl.StudyPlanServiceImpl.verifyInformation(StudyPlanServiceImpl.java:158)
+	at com.mxhieu.doantotnghiep.service.impl.StudyPlanServiceImplTest.verifyInformation_WhenTrackHasNoUnits_ShouldReturnEmptySummary(StudyPlanServiceImplTest.java:889)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
+com.mxhieu.doantotnghiep.service.impl.StudyPlanServiceImplTest.createStudyPlan_WhenStudentNotFound_ShouldNotDeactivateOldPlans -- Time elapsed: 0.011 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+expected: 0
+ but was: 1
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance0(Native Method)
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance(NativeConstructorAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingConstructorAccessorImpl.newInstance(DelegatingConstructorAccessorImpl.java:45)
+	at java.base/java.lang.reflect.Constructor.newInstanceWithCaller(Constructor.java:499)
+	at com.mxhieu.doantotnghiep.service.impl.StudyPlanServiceImplTest.createStudyPlan_WhenStudentNotFound_ShouldNotDeactivateOldPlans(StudyPlanServiceImplTest.java:815)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
+com.mxhieu.doantotnghiep.service.impl.StudyPlanServiceImplTest.createStudyPlan_WhenTrackNotFound_ShouldNotDeactivateOldPlans -- Time elapsed: 0.011 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+expected: 0
+ but was: 1
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance0(Native Method)
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance(NativeConstructorAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingConstructorAccessorImpl.newInstance(DelegatingConstructorAccessorImpl.java:45)
+	at java.base/java.lang.reflect.Constructor.newInstanceWithCaller(Constructor.java:499)
+	at com.mxhieu.doantotnghiep.service.impl.StudyPlanServiceImplTest.createStudyPlan_WhenTrackNotFound_ShouldNotDeactivateOldPlans(StudyPlanServiceImplTest.java:771)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
+com.mxhieu.doantotnghiep.service.impl.StudyPlanServiceImplTest.getInformation_WhenStudyDaysAlreadyExceeded_ShouldClampRemainingDaysToZero -- Time elapsed: 0.019 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+expected: 0
+ but was: -29
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance0(Native Method)
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance(NativeConstructorAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingConstructorAccessorImpl.newInstance(DelegatingConstructorAccessorImpl.java:45)
+	at java.base/java.lang.reflect.Constructor.newInstanceWithCaller(Constructor.java:499)
+	at com.mxhieu.doantotnghiep.service.impl.StudyPlanServiceImplTest.getInformation_WhenStudyDaysAlreadyExceeded_ShouldClampRemainingDaysToZero(StudyPlanServiceImplTest.java:927)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
+com.mxhieu.doantotnghiep.service.impl.StudyPlanServiceImplTest.createStudyPlan_WhenLessonNotFound_ShouldNotDeactivateOldPlans -- Time elapsed: 0.014 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+expected: 0
+ but was: 1
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance0(Native Method)
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance(NativeConstructorAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingConstructorAccessorImpl.newInstance(DelegatingConstructorAccessorImpl.java:45)
+	at java.base/java.lang.reflect.Constructor.newInstanceWithCaller(Constructor.java:499)
+	at com.mxhieu.doantotnghiep.service.impl.StudyPlanServiceImplTest.createStudyPlan_WhenLessonNotFound_ShouldNotDeactivateOldPlans(StudyPlanServiceImplTest.java:860)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+

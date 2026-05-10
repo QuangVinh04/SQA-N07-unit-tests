@@ -1,0 +1,54 @@
+-------------------------------------------------------------------------------
+Test set: com.mxhieu.doantotnghiep.service.impl.LessonProgressServiceImplTest
+-------------------------------------------------------------------------------
+Tests run: 21, Failures: 1, Errors: 4, Skipped: 0, Time elapsed: 4.384 s <<< FAILURE! -- in com.mxhieu.doantotnghiep.service.impl.LessonProgressServiceImplTest
+com.mxhieu.doantotnghiep.service.impl.LessonProgressServiceImplTest.checkCompletionCondition_WhenGatingRulesIsNull_ShouldUseZeroAsDefault -- Time elapsed: 0.027 s <<< ERROR!
+java.lang.NullPointerException: Cannot invoke "java.lang.Integer.intValue()" because the return value of "com.mxhieu.doantotnghiep.entity.LessonEntity.getGatingRules()" is null
+	at com.mxhieu.doantotnghiep.service.impl.LessonProgressServiceImpl.checkCompleted(LessonProgressServiceImpl.java:147)
+	at com.mxhieu.doantotnghiep.service.impl.LessonProgressServiceImpl.checkCompletionCondition(LessonProgressServiceImpl.java:45)
+	at com.mxhieu.doantotnghiep.service.impl.LessonProgressServiceImplTest.checkCompletionCondition_WhenGatingRulesIsNull_ShouldUseZeroAsDefault(LessonProgressServiceImplTest.java:745)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
+com.mxhieu.doantotnghiep.service.impl.LessonProgressServiceImplTest.unLockNextCourse_WhenEnrollmentCourseStatusIsNull_ShouldSetDone -- Time elapsed: 0.010 s <<< ERROR!
+java.lang.NullPointerException: Cannot invoke "String.equals(Object)" because the return value of "com.mxhieu.doantotnghiep.entity.EnrollmentCourseEntity.getStatus()" is null
+	at com.mxhieu.doantotnghiep.service.impl.LessonProgressServiceImpl.setStatusCourse(LessonProgressServiceImpl.java:114)
+	at com.mxhieu.doantotnghiep.service.impl.LessonProgressServiceImpl.unLockNextCourse(LessonProgressServiceImpl.java:95)
+	at com.mxhieu.doantotnghiep.service.impl.LessonProgressServiceImplTest.unLockNextCourse_WhenEnrollmentCourseStatusIsNull_ShouldSetDone(LessonProgressServiceImplTest.java:814)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
+com.mxhieu.doantotnghiep.service.impl.LessonProgressServiceImplTest.checkCompletionCondition_WhenPercentageGreaterThan100_ShouldClampTo100 -- Time elapsed: 0.033 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+expected: 100
+ but was: 150
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance0(Native Method)
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance(NativeConstructorAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingConstructorAccessorImpl.newInstance(DelegatingConstructorAccessorImpl.java:45)
+	at java.base/java.lang.reflect.Constructor.newInstanceWithCaller(Constructor.java:499)
+	at com.mxhieu.doantotnghiep.service.impl.LessonProgressServiceImplTest.checkCompletionCondition_WhenPercentageGreaterThan100_ShouldClampTo100(LessonProgressServiceImplTest.java:781)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
+com.mxhieu.doantotnghiep.service.impl.LessonProgressServiceImplTest.checkCompletionCondition_WhenExercisesIsNull_ShouldTreatAsNoExercise -- Time elapsed: 0.008 s <<< ERROR!
+java.lang.NullPointerException: Cannot invoke "java.util.List.size()" because the return value of "com.mxhieu.doantotnghiep.entity.LessonEntity.getExercises()" is null
+	at com.mxhieu.doantotnghiep.service.impl.LessonProgressServiceImpl.checkCompleted(LessonProgressServiceImpl.java:150)
+	at com.mxhieu.doantotnghiep.service.impl.LessonProgressServiceImpl.checkCompletionCondition(LessonProgressServiceImpl.java:45)
+	at com.mxhieu.doantotnghiep.service.impl.LessonProgressServiceImplTest.checkCompletionCondition_WhenExercisesIsNull_ShouldTreatAsNoExercise(LessonProgressServiceImplTest.java:711)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
+com.mxhieu.doantotnghiep.service.impl.LessonProgressServiceImplTest.unLockNextTrack_WhenEnrollmentStatusIsNull_ShouldSetCurrentDone -- Time elapsed: 0.007 s <<< ERROR!
+java.lang.NullPointerException: Cannot invoke "java.lang.Integer.equals(Object)" because the return value of "com.mxhieu.doantotnghiep.entity.EnrollmentEntity.getStatus()" is null
+	at com.mxhieu.doantotnghiep.service.impl.LessonProgressServiceImpl.setStatusTrack(LessonProgressServiceImpl.java:136)
+	at com.mxhieu.doantotnghiep.service.impl.LessonProgressServiceImpl.unLockNextTrack(LessonProgressServiceImpl.java:123)
+	at com.mxhieu.doantotnghiep.service.impl.LessonProgressServiceImplTest.unLockNextTrack_WhenEnrollmentStatusIsNull_ShouldSetCurrentDone(LessonProgressServiceImplTest.java:845)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+

@@ -1,0 +1,54 @@
+-------------------------------------------------------------------------------
+Test set: com.mxhieu.doantotnghiep.service.impl.TestProgressServiceImplTest
+-------------------------------------------------------------------------------
+Tests run: 18, Failures: 1, Errors: 4, Skipped: 0, Time elapsed: 0.301 s <<< FAILURE! -- in com.mxhieu.doantotnghiep.service.impl.TestProgressServiceImplTest
+com.mxhieu.doantotnghiep.service.impl.TestProgressServiceImplTest.checkCompletionCondition_WhenNextItemResponseIsNull_ShouldFallbackUnlockCourse -- Time elapsed: 0.008 s <<< ERROR!
+java.lang.NullPointerException: Cannot invoke "com.mxhieu.doantotnghiep.dto.response.LessonOrTestAroundResponse.getType()" because "nextLessonOrTest" is null
+	at com.mxhieu.doantotnghiep.service.impl.TestProgressServiceImpl.unLockNext(TestProgressServiceImpl.java:63)
+	at com.mxhieu.doantotnghiep.service.impl.TestProgressServiceImpl.checkCompletionCondition(TestProgressServiceImpl.java:45)
+	at com.mxhieu.doantotnghiep.service.impl.TestProgressServiceImplTest.checkCompletionCondition_WhenNextItemResponseIsNull_ShouldFallbackUnlockCourse(TestProgressServiceImplTest.java:589)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
+com.mxhieu.doantotnghiep.service.impl.TestProgressServiceImplTest.checkCompletionCondition_WhenNoNextItemAndModuleIsNull_ShouldReturnTrueWithoutNpe -- Time elapsed: 0.008 s <<< ERROR!
+java.lang.NullPointerException: Cannot invoke "com.mxhieu.doantotnghiep.entity.ModuleEntity.getCourse()" because the return value of "com.mxhieu.doantotnghiep.entity.TestEntity.getModule()" is null
+	at com.mxhieu.doantotnghiep.service.impl.TestProgressServiceImpl.unLockNext(TestProgressServiceImpl.java:87)
+	at com.mxhieu.doantotnghiep.service.impl.TestProgressServiceImpl.checkCompletionCondition(TestProgressServiceImpl.java:45)
+	at com.mxhieu.doantotnghiep.service.impl.TestProgressServiceImplTest.checkCompletionCondition_WhenNoNextItemAndModuleIsNull_ShouldReturnTrueWithoutNpe(TestProgressServiceImplTest.java:652)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
+com.mxhieu.doantotnghiep.service.impl.TestProgressServiceImplTest.checkCompletionCondition_WhenDuplicateCurrentProgressRecords_ShouldUpdateAllRecords -- Time elapsed: 0.005 s <<< FAILURE!
+org.opentest4j.AssertionFailedError: 
+
+expected: 2
+ but was: 0
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance0(Native Method)
+	at java.base/jdk.internal.reflect.NativeConstructorAccessorImpl.newInstance(NativeConstructorAccessorImpl.java:77)
+	at java.base/jdk.internal.reflect.DelegatingConstructorAccessorImpl.newInstance(DelegatingConstructorAccessorImpl.java:45)
+	at java.base/java.lang.reflect.Constructor.newInstanceWithCaller(Constructor.java:499)
+	at com.mxhieu.doantotnghiep.service.impl.TestProgressServiceImplTest.checkCompletionCondition_WhenDuplicateCurrentProgressRecords_ShouldUpdateAllRecords(TestProgressServiceImplTest.java:695)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
+com.mxhieu.doantotnghiep.service.impl.TestProgressServiceImplTest.checkCompletionCondition_WhenNextItemTypeIsNull_ShouldFallbackUnlockCourse -- Time elapsed: 0.005 s <<< ERROR!
+java.lang.NullPointerException: Cannot invoke "String.equals(Object)" because the return value of "com.mxhieu.doantotnghiep.dto.response.LessonOrTestAroundResponse.getType()" is null
+	at com.mxhieu.doantotnghiep.service.impl.TestProgressServiceImpl.unLockNext(TestProgressServiceImpl.java:63)
+	at com.mxhieu.doantotnghiep.service.impl.TestProgressServiceImpl.checkCompletionCondition(TestProgressServiceImpl.java:45)
+	at com.mxhieu.doantotnghiep.service.impl.TestProgressServiceImplTest.checkCompletionCondition_WhenNextItemTypeIsNull_ShouldFallbackUnlockCourse(TestProgressServiceImplTest.java:620)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
+com.mxhieu.doantotnghiep.service.impl.TestProgressServiceImplTest.checkCompletionCondition_WhenAttemptScoreIsNull_ShouldTreatAsZero -- Time elapsed: 0.006 s <<< ERROR!
+java.lang.NullPointerException: Cannot invoke "java.lang.Integer.intValue()" because the return value of "com.mxhieu.doantotnghiep.entity.TestAttemptEntity.getTotalScore()" is null
+	at com.mxhieu.doantotnghiep.service.impl.TestProgressServiceImpl.checkCompleted(TestProgressServiceImpl.java:97)
+	at com.mxhieu.doantotnghiep.service.impl.TestProgressServiceImpl.checkCompletionCondition(TestProgressServiceImpl.java:43)
+	at com.mxhieu.doantotnghiep.service.impl.TestProgressServiceImplTest.checkCompletionCondition_WhenAttemptScoreIsNull_ShouldTreatAsZero(TestProgressServiceImplTest.java:558)
+	at java.base/java.lang.reflect.Method.invoke(Method.java:568)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+	at java.base/java.util.ArrayList.forEach(ArrayList.java:1511)
+
