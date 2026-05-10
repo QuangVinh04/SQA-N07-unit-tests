@@ -139,15 +139,17 @@ export class ExamService {
       }
 
       // Add media-derived questions with auto-incremented order
+      let nextOrder = startOrder;
       mediaQuestions.forEach((q, idx) => {
         // Skip if already added explicitly
         if (!questionsToAdd.some((eq) => eq.QuestionID === q.ID)) {
           questionsToAdd.push({
             QuestionID: q.ID,
-            OrderIndex: startOrder + idx,
+            OrderIndex: nextOrder,
             MediaQuestionID: q.MediaQuestionID,
             IsGrouped: true, // Mark as part of media group
           });
+          nextOrder += 1;
         }
       });
     }

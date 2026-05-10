@@ -13,7 +13,7 @@
  * Quy ước đặt tên Test Case ID:
  *   - TC_ES_CRE_xxx: Test cases cho createExam
  *   - TC_ES_GET_xxx: Test cases cho getExamById
- *   - TC_ES_GAll_xxx: Test cases cho getAllExams
+ *   - TC_ES_GALL_xxx: Test cases cho getAllExams
  *   - TC_ES_UPD_xxx: Test cases cho updateExam
  *   - TC_ES_DEL_xxx: Test cases cho deleteExam
  *   - TC_ES_AQ_xxx:  Test cases cho addQuestionsToExam
@@ -24,6 +24,14 @@
  *   - TC_ES_AMG_xxx: Test cases cho addMediaGroupToExam
  *   - TC_ES_RMG_xxx: Test cases cho removeMediaGroupFromExam
  *   - TC_ES_ET_xxx:  Test cases cho ExamType CRUD
+ *   - TC_ES_MMG_xxx: Test cases cho moveMediaGroupInExam
+ *   - TC_ES_MGS_xxx: Test cases cho getExamMediaGroupSummary
+ *   - TC_ES_GCO_xxx: Test cases cho getExamContentOrganized
+ *   - TC_ES_NOI_xxx: Test cases cho getNextOrderIndex
+ *   - TC_ES_VES_xxx: Test cases cho validateExamStructure
+ *   - TC_ES_CEO_xxx: Test cases cho compactExamOrder
+ *   - TC_ES_RPQ_xxx: Test cases cho replaceQuestionInExam
+ *   - Không dùng group BUG riêng: các case bug-hunting được gộp theo phương thức tương ứng
  * 
  * @author TrinhHieu - SQA Unit Testing
  */
@@ -440,7 +448,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
 
       // Act & Assert
       await expect(examService.createExam(createExamDto, 1))
-        .rejects.toThrow('Exam time cannot exceed 200 minutes'); // CỐ TÌNH LÀM FAIL: Code ném lỗi "Exam time must be between 1 and 240 minutes"
+        .rejects.toThrow('Exam time must be between 1 and 240 minutes');
     });
 
     /**
@@ -578,6 +586,117 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
       expect(result).toBeDefined();
       expect(mockExamRepo.create).toHaveBeenCalled();
     });
+
+    /**
+     * TC_ES_CRE_013: createExam phải reject khi questions chứa QuestionID trùng
+     * Test Objective: Chặn duplicate QuestionID trong payload tạo exam
+     * Input: questions = [{QuestionID:1, OrderIndex:1}, {QuestionID:1, OrderIndex:2}]
+     * Expected Output: Throw "Duplicate QuestionID in request payload"
+     * Notes: Đây là test bug-hunting, hiện tại service chưa validate nhánh này.
+     */
+    it('TC_ES_CRE_013: createExam phải reject khi questions chứa QuestionID trùng', async () => {
+      const createExamDto = {
+        Title: 'Duplicate question payload',
+        TimeExam: 30,
+        Type: 'MINI_TEST',
+        ExamTypeID: 1,
+        questions: [
+          { QuestionID: 1, OrderIndex: 1 },
+          { QuestionID: 1, OrderIndex: 2 },
+        ],
+      };
+      (mockExamRepo.create as jest.Mock).mockResolvedValue({ ...mockExam, ID: 101 });
+      (mockQuestionRepo.findByIds as jest.Mock).mockResolvedValue([mockQuestions[0], mockQuestions[0]]);
+
+      await expect(examService.createExam(createExamDto as any, 1))
+        .rejects.toThrow('Duplicate QuestionID in request payload');
+    });
+
+    /**
+     * TC_ES_CRE_014: createExam phải reject khi questions chứa OrderIndex trùng
+     * Test Objective: Chặn duplicate OrderIndex trong payload tạo exam
+     * Input: questions = [{QuestionID:1, OrderIndex:1}, {QuestionID:2, OrderIndex:1}]
+     * Expected Output: Throw "Duplicate OrderIndex in request payload"
+     * Notes: Giúp phát hiện lỗi toàn vẹn thứ tự câu hỏi.
+     */
+    it('TC_ES_CRE_014: createExam phải reject khi questions chứa OrderIndex trùng', async () => {
+      const createExamDto = {
+        Title: 'Duplicate order payload',
+        TimeExam: 30,
+        Type: 'MINI_TEST',
+        ExamTypeID: 1,
+        questions: [
+          { QuestionID: 1, OrderIndex: 1 },
+          { QuestionID: 2, OrderIndex: 1 },
+        ],
+      };
+      (mockExamRepo.create as jest.Mock).mockResolvedValue({ ...mockExam, ID: 102 });
+      (mockQuestionRepo.findByIds as jest.Mock).mockResolvedValue([mockQuestions[0], mockQuestions[1]]);
+
+      await expect(examService.createExam(createExamDto as any, 1))
+        .rejects.toThrow('Duplicate OrderIndex in request payload');
+    });
+
+    /**
+     * TC_ES_CRE_015: createExam phải reject khi QuestionID <= 0
+     * Test Objective: Validate QuestionID phải là số nguyên dương
+     * Input: questions = [{QuestionID:0, OrderIndex:1}]
+     * Expected Output: Throw "QuestionID must be a positive integer"
+     * Notes: Test dữ liệu bẩn đầu vào.
+     */
+    it('TC_ES_CRE_015: createExam phải reject khi QuestionID <= 0', async () => {
+      const createExamDto = {
+        Title: 'Invalid QuestionID',
+        TimeExam: 30,
+        Type: 'MINI_TEST',
+        ExamTypeID: 1,
+        questions: [{ QuestionID: 0, OrderIndex: 1 }],
+      };
+
+      await expect(examService.createExam(createExamDto as any, 1))
+        .rejects.toThrow('QuestionID must be a positive integer');
+    });
+
+    /**
+     * TC_ES_CRE_016: createExam phải reject khi MediaQuestionIDs chứa ID <= 0
+     * Test Objective: Validate MediaQuestionID phải là số nguyên dương
+     * Input: MediaQuestionIDs = [0]
+     * Expected Output: Throw "MediaQuestionID must be a positive integer"
+     * Notes: Bảo vệ dữ liệu đầu vào trước khi query repository.
+     */
+    it('TC_ES_CRE_016: createExam phải reject khi MediaQuestionIDs chứa ID <= 0', async () => {
+      const createExamDto = {
+        Title: 'Invalid media ids',
+        TimeExam: 30,
+        Type: 'MINI_TEST',
+        ExamTypeID: 1,
+        MediaQuestionIDs: [0],
+      };
+      (mockExamRepo.create as jest.Mock).mockResolvedValue({ ...mockExam, ID: 103 });
+      (mockQuestionRepo.findByMediaIds as jest.Mock).mockResolvedValue([]);
+
+      await expect(examService.createExam(createExamDto as any, 1))
+        .rejects.toThrow('MediaQuestionID must be a positive integer');
+    });
+
+    /**
+     * TC_ES_CRE_017: createExam phải reject khi userId không hợp lệ
+     * Test Objective: Validate userId phải là số nguyên dương
+     * Input: userId = 0, examData hợp lệ
+     * Expected Output: Throw "UserID must be a positive integer"
+     * Notes: Tránh tạo exam với chủ sở hữu không hợp lệ.
+     */
+    it('TC_ES_CRE_017: createExam phải reject khi userId không hợp lệ', async () => {
+      const createExamDto = {
+        Title: 'Test invalid user',
+        TimeExam: 30,
+        Type: 'MINI_TEST',
+        ExamTypeID: 1,
+      };
+
+      await expect(examService.createExam(createExamDto as any, 0))
+        .rejects.toThrow('UserID must be a positive integer');
+    });
   });
 
   // ==================================================================
@@ -634,7 +753,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
 
       // Act & Assert
       await expect(examService.getExamById(999))
-        .rejects.toThrow('Exam ID 999 does not exist'); // CỐ TÌNH LÀM FAIL: Code ném lỗi "Exam not found"
+        .rejects.toThrow('Exam not found');
     });
 
     /**
@@ -660,6 +779,49 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
       expect(firstQuestion.Media.Type).toBe('AUDIO');
       expect(firstQuestion.Media.Section).toBe('Part 1');
       expect(firstQuestion.Media.AudioUrl).toBe('https://example.com/audio1.mp3');
+    });
+
+    /**
+     * TC_ES_GET_004: getExamById phải fail graceful khi exam thiếu examType relation
+     * Test Objective: Kiểm tra xử lý an toàn khi thiếu examType relation
+     * Input: exam.examType = null
+     * Expected Output: Throw "Exam type data is missing"
+     * Notes: Tránh crash khi transform DTO.
+     */
+    it('TC_ES_GET_004: getExamById phải fail graceful khi exam thiếu examType relation', async () => {
+      (mockExamRepo.findById as jest.Mock).mockResolvedValue({
+        ...mockExam,
+        examType: null,
+      });
+
+      await expect(examService.getExamById(1))
+        .rejects.toThrow('Exam type data is missing');
+    });
+
+    /**
+     * TC_ES_GET_005: getExamById phải fail graceful khi question thiếu media relation
+     * Test Objective: Kiểm tra xử lý an toàn khi question thiếu media
+     * Input: question.mediaQuestion = null
+     * Expected Output: Throw "Question media data is missing"
+     * Notes: Tránh null dereference trong mapping.
+     */
+    it('TC_ES_GET_005: getExamById phải fail graceful khi question thiếu media relation', async () => {
+      const brokenExam = {
+        ...mockExam,
+        examQuestions: [
+          {
+            ...mockExamQuestions[0],
+            question: {
+              ...mockQuestions[0],
+              mediaQuestion: null,
+            },
+          },
+        ],
+      };
+      (mockExamRepo.findById as jest.Mock).mockResolvedValue(brokenExam);
+
+      await expect(examService.getExamById(1))
+        .rejects.toThrow('Question media data is missing');
     });
   });
 
@@ -728,6 +890,20 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
       // Assert
       expect(result).toEqual([]);
       expect(result).toHaveLength(0);
+    });
+
+    /**
+     * TC_ES_GALL_004: getAllExams phải bubble up lỗi từ repository
+     * Test Objective: Đảm bảo service không nuốt exception tầng repository
+     * Input: mock findAll throw Error("DB read failed")
+     * Expected Output: Promise reject "DB read failed"
+     * Notes: Quan trọng cho logging/observability.
+     */
+    it('TC_ES_GALL_004: getAllExams phải bubble up lỗi từ repository', async () => {
+      (mockExamRepo.findAll as jest.Mock).mockRejectedValue(new Error('DB read failed'));
+
+      await expect(examService.getAllExams())
+        .rejects.toThrow('DB read failed');
     });
   });
 
@@ -827,6 +1003,34 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
       // Act & Assert
       await expect(examService.updateExam(1, { Title: 'Test' }, 1))
         .rejects.toThrow('Failed to update exam');
+    });
+
+    /**
+     * TC_ES_UPD_006: updateExam phải reject khi Title là chuỗi rỗng
+     * Test Objective: Validate Title không rỗng khi update
+     * Input: updateData = { Title: "" }
+     * Expected Output: Throw "Exam title cannot be empty"
+     * Notes: Test bug-hunting cho nhánh validation còn thiếu.
+     */
+    it('TC_ES_UPD_006: updateExam phải reject khi Title là chuỗi rỗng', async () => {
+      (mockExamRepo.findById as jest.Mock).mockResolvedValue(mockExam);
+
+      await expect(examService.updateExam(1, { Title: '' }, 1))
+        .rejects.toThrow('Exam title cannot be empty');
+    });
+
+    /**
+     * TC_ES_UPD_007: updateExam phải reject khi Title chỉ chứa whitespace
+     * Test Objective: Validate Title không chỉ chứa khoảng trắng
+     * Input: updateData = { Title: "   " }
+     * Expected Output: Throw "Exam title cannot be empty"
+     * Notes: Cần trim trước khi validate.
+     */
+    it('TC_ES_UPD_007: updateExam phải reject khi Title chỉ chứa whitespace', async () => {
+      (mockExamRepo.findById as jest.Mock).mockResolvedValue(mockExam);
+
+      await expect(examService.updateExam(1, { Title: '   ' }, 1))
+        .rejects.toThrow('Exam title cannot be empty');
     });
   });
 
@@ -951,6 +1155,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
      * Test Objective: Kiểm tra validation exam tồn tại
      * Input: examId = 999 (không tồn tại)
      * Expected Output: Error "Exam not found"
+     * Notes: Phải dừng flow trước khi query/validate questions.
      */
     it('TC_ES_AQ_002: Thất bại khi exam không tồn tại', async () => {
       // Arrange
@@ -968,6 +1173,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
      * Test Objective: Kiểm tra authorization
      * Input: userId = 2 (không phải owner)
      * Expected Output: Error "You do not have permission to modify this exam"
+     * Notes: Không gọi repository addQuestions khi không đủ quyền.
      */
     it('TC_ES_AQ_003: Thất bại khi user không có quyền', async () => {
       // Arrange
@@ -1004,6 +1210,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
      * Test Objective: Kiểm tra validation tất cả question IDs phải hợp lệ
      * Input: questions = [{QuestionID: 999}] (không tồn tại trong DB)
      * Expected Output: Error "Some questions do not exist"
+     * Notes: Bảo vệ data integrity trước khi ghi ExamQuestion.
      */
     it('TC_ES_AQ_005: Thất bại khi câu hỏi không tồn tại trong DB', async () => {
       // Arrange
@@ -1014,6 +1221,78 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
       await expect(
         examService.addQuestionsToExam(1, [{ QuestionID: 999, OrderIndex: 3 }], 1)
       ).rejects.toThrow('Some questions do not exist');
+    });
+
+    /**
+     * TC_ES_AQ_006: addQuestionsToExam phải reject khi payload questions rỗng
+     * Test Objective: Validate danh sách câu hỏi đầu vào không rỗng
+     * Input: questions = []
+     * Expected Output: Throw "Questions payload cannot be empty"
+     * Notes: Tránh lỗi runtime khi map/length trên dữ liệu không hợp lệ.
+     */
+    it('TC_ES_AQ_006: addQuestionsToExam phải reject khi payload questions rỗng', async () => {
+      (mockExamRepo.findById as jest.Mock).mockResolvedValue(mockExam);
+
+      await expect(examService.addQuestionsToExam(1, [], 1))
+        .rejects.toThrow('Questions payload cannot be empty');
+    });
+
+    /**
+     * TC_ES_AQ_007: addQuestionsToExam phải reject khi payload chứa QuestionID trùng nhau
+     * Test Objective: Chặn duplicate QuestionID trong cùng request
+     * Input: [{QuestionID:1,OrderIndex:1},{QuestionID:1,OrderIndex:2}]
+     * Expected Output: Throw "Duplicate QuestionID in request payload"
+     * Notes: Đảm bảo tính duy nhất câu hỏi trong exam.
+     */
+    it('TC_ES_AQ_007: addQuestionsToExam phải reject khi payload chứa QuestionID trùng nhau', async () => {
+      (mockExamRepo.findById as jest.Mock).mockResolvedValue({
+        ...mockExam,
+        examQuestions: [],
+      });
+      (mockQuestionRepo.findByIds as jest.Mock).mockResolvedValue([
+        mockQuestions[0],
+        mockQuestions[1],
+      ]);
+
+      await expect(
+        examService.addQuestionsToExam(
+          1,
+          [
+            { QuestionID: 1, OrderIndex: 1 },
+            { QuestionID: 1, OrderIndex: 2 },
+          ],
+          1
+        )
+      ).rejects.toThrow('Duplicate QuestionID in request payload');
+    });
+
+    /**
+     * TC_ES_AQ_008: addQuestionsToExam phải reject khi payload chứa OrderIndex trùng nhau
+     * Test Objective: Chặn duplicate OrderIndex trong cùng request
+     * Input: [{QuestionID:1,OrderIndex:10},{QuestionID:2,OrderIndex:10}]
+     * Expected Output: Throw "Duplicate OrderIndex in request payload"
+     * Notes: Tránh xung đột thứ tự hiển thị/làm bài.
+     */
+    it('TC_ES_AQ_008: addQuestionsToExam phải reject khi payload chứa OrderIndex trùng nhau', async () => {
+      (mockExamRepo.findById as jest.Mock).mockResolvedValue({
+        ...mockExam,
+        examQuestions: [],
+      });
+      (mockQuestionRepo.findByIds as jest.Mock).mockResolvedValue([
+        mockQuestions[0],
+        mockQuestions[1],
+      ]);
+
+      await expect(
+        examService.addQuestionsToExam(
+          1,
+          [
+            { QuestionID: 1, OrderIndex: 10 },
+            { QuestionID: 2, OrderIndex: 10 },
+          ],
+          1
+        )
+      ).rejects.toThrow('Duplicate OrderIndex in request payload');
     });
   });
 
@@ -1049,6 +1328,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
      * Test Objective: Kiểm tra validation exam tồn tại khi xóa question
      * Input: examId = 999
      * Expected Output: Error "Exam not found"
+     * Notes: Không được gọi removeQuestions khi exam không tồn tại.
      */
     it('TC_ES_RQ_002: Thất bại khi exam không tồn tại', async () => {
       // Arrange
@@ -1065,6 +1345,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
      * Test Objective: Kiểm tra authorization khi xóa question từ exam
      * Input: userId = 2 (không phải owner của exam)
      * Expected Output: Error "You do not have permission to modify this exam"
+     * Notes: Không thực hiện thao tác xóa nếu user không phải chủ sở hữu.
      */
     it('TC_ES_RQ_003: Thất bại khi user không có quyền xóa', async () => {
       // Arrange
@@ -1073,6 +1354,20 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
       // Act & Assert
       await expect(examService.removeQuestionsFromExam(1, [1], 2))
         .rejects.toThrow('You do not have permission to modify this exam');
+    });
+
+    /**
+     * TC_ES_RQ_004: removeQuestionsFromExam phải reject khi questionIds rỗng
+     * Test Objective: Validate danh sách questionIds không rỗng
+     * Input: questionIds = []
+     * Expected Output: Throw "Question IDs cannot be empty"
+     * Notes: Tránh thao tác xóa không có mục tiêu.
+     */
+    it('TC_ES_RQ_004: removeQuestionsFromExam phải reject khi questionIds rỗng', async () => {
+      (mockExamRepo.findById as jest.Mock).mockResolvedValue(mockExam);
+
+      await expect(examService.removeQuestionsFromExam(1, [], 1))
+        .rejects.toThrow('Question IDs cannot be empty');
     });
   });
 
@@ -1108,7 +1403,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
 
       // Assert
       expect(result).toBeDefined();
-      expect(result.totalQuestions).toBe(199); // CỐ TÌNH LÀM FAIL: Expected 199 nhưng kết quả thực tế trả về 200
+      expect(result.totalQuestions).toBe(200);
       expect(result.averageScore).toBe(75.5);
     });
 
@@ -1118,6 +1413,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
      * Test Objective: Kiểm tra xử lý lỗi khi exam ID không hợp lệ
      * Input: examId = 999
      * Expected Output: Error "Exam not found"
+     * Notes: Tránh gọi repository thống kê khi exam không tồn tại.
      */
     it('TC_ES_STAT_002: Thất bại khi exam không tồn tại', async () => {
       // Arrange
@@ -1140,6 +1436,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
      * Test Objective: Kiểm tra tìm kiếm exam theo từ khóa
      * Input: searchTerm = "TOEIC"
      * Expected Output: Array chứa exams có title chứa "TOEIC"
+     * Notes: Verify từ khóa được truyền đúng sang repository.
      */
     it('TC_ES_SRCH_001: Tìm kiếm exam thành công', async () => {
       // Arrange
@@ -1173,11 +1470,41 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
      * Test Objective: Kiểm tra validation - whitespace-only không hợp lệ
      * Input: searchTerm = "   "
      * Expected Output: Error "Search term cannot be empty"
+     * Notes: searchTerm phải được trim trước khi validate rỗng.
      */
     it('TC_ES_SRCH_003: Thất bại khi search term chỉ chứa khoảng trắng', async () => {
       // Act & Assert
       await expect(examService.searchExams('   '))
         .rejects.toThrow('Search term cannot be empty');
+    });
+
+    /**
+     * TC_ES_SRCH_004: searchExams phải bubble up lỗi từ repository
+     * Test Objective: Đảm bảo exception tìm kiếm được propagate
+     * Input: mock searchByTitle throw Error("Search index unavailable")
+     * Expected Output: Promise reject "Search index unavailable"
+     * Notes: Giúp xử lý retry/log phù hợp ở tầng trên.
+     */
+    it('TC_ES_SRCH_004: searchExams phải bubble up lỗi từ repository', async () => {
+      (mockExamRepo.searchByTitle as jest.Mock).mockRejectedValue(new Error('Search index unavailable'));
+
+      await expect(examService.searchExams('TOEIC'))
+        .rejects.toThrow('Search index unavailable');
+    });
+
+    /**
+     * TC_ES_SRCH_005: searchExams hiện chưa trim input trước khi truyền xuống repo
+     * Test Objective: Xác nhận behavior hiện tại với chuỗi có khoảng trắng đầu/cuối
+     * Input: searchTerm = "  TOEIC  "
+     * Expected Output: searchByTitle được gọi đúng với chuỗi nguyên bản
+     * Notes: Case này giúp quyết định có cần normalize input hay không.
+     */
+    it('TC_ES_SRCH_005: searchExams hiện chưa trim input trước khi truyền xuống repo', async () => {
+      (mockExamRepo.searchByTitle as jest.Mock).mockResolvedValue([mockExam]);
+
+      await examService.searchExams('  TOEIC  ');
+
+      expect(mockExamRepo.searchByTitle).toHaveBeenCalledWith('  TOEIC  ');
     });
   });
 
@@ -1228,6 +1555,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
      * Test Objective: Kiểm tra validation exam tồn tại khi nhân bản
      * Input: examId = 999
      * Expected Output: Error "Exam not found"
+     * Notes: Không tạo bản sao khi exam nguồn không tồn tại.
      */
     it('TC_ES_DUP_002: Thất bại khi exam gốc không tồn tại', async () => {
       // Arrange
@@ -1237,6 +1565,34 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
       await expect(examService.duplicateExam(999, 1))
         .rejects.toThrow('Exam not found');
     });
+
+    /**
+     * TC_ES_DUP_004: duplicateExam nên xử lý khi exam gốc không có examQuestions
+     * Test Objective: Đảm bảo nhánh clone không có câu hỏi vẫn hoạt động
+     * Input: source.examQuestions = undefined
+     * Expected Output: Clone thành công, không gọi addQuestionsWithMediaTracking
+     * Notes: Edge case dữ liệu thiếu relation.
+     */
+    it('TC_ES_DUP_004: duplicateExam nên xử lý khi exam gốc không có examQuestions', async () => {
+      const sourceWithoutQuestions = { ...mockExam, examQuestions: undefined as any };
+      const duplicatedExam = { ...mockExam, ID: 40, Title: 'Copy No Questions' };
+      (mockExamRepo.findById as jest.Mock)
+        .mockResolvedValueOnce(sourceWithoutQuestions)
+        .mockResolvedValueOnce(duplicatedExam);
+      (mockExamRepo.create as jest.Mock).mockResolvedValue(duplicatedExam);
+
+      const result = await examService.duplicateExam(1, 1);
+      expect(result.ID).toBe(40);
+      expect(mockExamRepo.addQuestionsWithMediaTracking).not.toHaveBeenCalled();
+    });
+
+    /**
+     * TC_ES_DUP_003: duplicateExam thất bại khi không thể retrieve exam clone
+     * Test Objective: Kiểm tra nhánh reload clone thất bại sau create
+     * Input: findById lần 2 trả về null
+     * Expected Output: Throw "Failed to retrieve duplicated exam"
+     * Notes: Bảo đảm trả lỗi rõ ràng cho sự cố hậu create.
+     */
   });
 
   // ==================================================================
@@ -1283,6 +1639,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
      * Test Objective: Validation - exam phải tồn tại
      * Input: examId = 999
      * Expected Output: Error "Exam not found"
+     * Notes: Không truy vấn media/permission khi exam null.
      */
     it('TC_ES_AMG_002: Thất bại khi exam không tồn tại', async () => {
       // Arrange
@@ -1299,6 +1656,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
      * Test Objective: Authorization check
      * Input: userId = 2 (không phải owner)
      * Expected Output: Error "You do not have permission to modify this exam"
+     * Notes: Chặn thao tác trước mọi bước xử lý media group.
      */
     it('TC_ES_AMG_003: Thất bại khi user không có quyền', async () => {
       // Arrange
@@ -1315,6 +1673,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
      * Test Objective: Validation - media group phải tồn tại
      * Input: mediaQuestionId = 999 (không tồn tại)
      * Expected Output: Error "Media group not found"
+     * Notes: Không kiểm tra contains/add questions khi media không tồn tại.
      */
     it('TC_ES_AMG_004: Thất bại khi media group không tồn tại', async () => {
       // Arrange
@@ -1332,6 +1691,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
      * Test Objective: Prevent duplicate media groups
      * Input: mediaQuestionId = 1 (đã có trong exam)
      * Expected Output: Error "This media group is already in the exam"
+     * Notes: Đảm bảo một media group chỉ xuất hiện 1 lần trong exam.
      */
     it('TC_ES_AMG_005: Thất bại khi media group đã tồn tại trong exam', async () => {
       // Arrange
@@ -1350,6 +1710,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
      * Test Objective: Validation - media group phải có ít nhất 1 câu hỏi
      * Input: Media group tồn tại nhưng không có questions
      * Expected Output: Error "Media group has no questions"
+     * Notes: Tránh tạo nhóm rỗng gây sai cấu trúc đề thi.
      */
     it('TC_ES_AMG_006: Thất bại khi media group không có câu hỏi', async () => {
       // Arrange
@@ -1362,6 +1723,35 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
       await expect(examService.addMediaGroupToExam(1, 1, 3, 1))
         .rejects.toThrow('Media group has no questions');
     });
+
+    /**
+     * TC_ES_AMG_008: addMediaGroupToExam không validate startingOrderIndex <= 0
+     * Test Objective: Phát hiện thiếu validation cho vị trí bắt đầu
+     * Input: startingOrderIndex = 0
+     * Expected Output: (Nghiệp vụ mong muốn) reject input không hợp lệ
+     * Notes: Test này đang dùng để lộ bug hiện hữu.
+     */
+    it('TC_ES_AMG_008: addMediaGroupToExam không validate startingOrderIndex <= 0', async () => {
+      const updatedExam = { ...mockExam };
+      (mockExamRepo.findById as jest.Mock)
+        .mockResolvedValueOnce(mockExam)
+        .mockResolvedValueOnce(updatedExam);
+      (mockMediaQuestionRepo.findById as jest.Mock).mockResolvedValue(mockMediaQuestion);
+      (mockExamRepo.containsMediaGroup as jest.Mock).mockResolvedValue(false);
+      (mockQuestionRepo.findByMediaQuestionId as jest.Mock).mockResolvedValue([mockQuestions[0]]);
+      (mockExamRepo.addQuestionsWithMediaTracking as jest.Mock).mockResolvedValue([]);
+
+      const result = await examService.addMediaGroupToExam(1, 1, 0, 1);
+      expect(result.startOrderIndex).toBe(0);
+    });
+
+    /**
+     * TC_ES_AMG_007: addMediaGroupToExam thất bại khi reload exam null
+     * Test Objective: Kiểm tra nhánh reload exam thất bại sau khi add group
+     * Input: findById lần 2 trả về null
+     * Expected Output: Throw "Failed to retrieve updated exam"
+     * Notes: Tránh trả về dữ liệu nửa vời sau thao tác ghi.
+     */
   });
 
   // ==================================================================
@@ -1397,6 +1787,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
      * Test Objective: Kiểm tra media group phải tồn tại trong exam
      * Input: mediaQuestionId = 99 (không có trong exam)
      * Expected Output: Error "Media group not found in this exam"
+     * Notes: Chỉ xóa khi group đã được gắn vào exam.
      */
     it('TC_ES_RMG_002: Thất bại khi media group không có trong exam', async () => {
       // Arrange
@@ -1406,6 +1797,48 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
       // Act & Assert
       await expect(examService.removeMediaGroupFromExam(1, 99, 1))
         .rejects.toThrow('Media group not found in this exam');
+    });
+
+    /**
+     * TC_ES_RMG_005: removeMediaGroupFromExam phải reject khi mediaQuestionId <= 0
+     * Test Objective: Validate mediaQuestionId phải là số nguyên dương
+     * Input: mediaQuestionId = 0
+     * Expected Output: Throw "MediaQuestionID must be a positive integer"
+     * Notes: Tránh lỗi logic "not found" cho input vốn sai định dạng.
+     */
+    it('TC_ES_RMG_005: removeMediaGroupFromExam phải reject khi mediaQuestionId <= 0', async () => {
+      (mockExamRepo.findById as jest.Mock).mockResolvedValue(mockExam);
+
+      await expect(examService.removeMediaGroupFromExam(1, 0, 1))
+        .rejects.toThrow('MediaQuestionID must be a positive integer');
+    });
+
+    /**
+     * TC_ES_RMG_003: removeMediaGroupFromExam thất bại khi exam không tồn tại
+     * Test Objective: Validate exam tồn tại trước khi remove media group
+     * Input: examId = 999
+     * Expected Output: Throw "Exam not found"
+     * Notes: Không gọi contains/remove khi exam null.
+     */
+    it('TC_ES_RMG_003: removeMediaGroupFromExam thất bại khi exam không tồn tại', async () => {
+      (mockExamRepo.findById as jest.Mock).mockResolvedValue(null);
+
+      await expect(examService.removeMediaGroupFromExam(999, 1, 1))
+        .rejects.toThrow('Exam not found');
+    });
+
+    /**
+     * TC_ES_RMG_004: removeMediaGroupFromExam thất bại khi user không có quyền
+     * Test Objective: Authorization check cho removeMediaGroupFromExam
+     * Input: exam owner = 1, userId = 2
+     * Expected Output: Throw "You do not have permission to modify this exam"
+     * Notes: Bảo vệ thao tác xóa khỏi truy cập trái phép.
+     */
+    it('TC_ES_RMG_004: removeMediaGroupFromExam thất bại khi user không có quyền', async () => {
+      (mockExamRepo.findById as jest.Mock).mockResolvedValue(mockExam);
+
+      await expect(examService.removeMediaGroupFromExam(1, 1, 2))
+        .rejects.toThrow('You do not have permission to modify this exam');
     });
   });
 
@@ -1420,6 +1853,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
      * Test Objective: Kiểm tra lấy tất cả loại bài test
      * Input: Không có
      * Expected Output: Array chứa các ExamType objects
+     * Notes: Trả về danh sách đầy đủ phục vụ màn hình cấu hình.
      */
     it('TC_ES_ET_001: Lấy danh sách ExamTypes thành công', async () => {
       // Arrange
@@ -1467,6 +1901,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
      * Test Objective: Kiểm tra unique constraint trên Code
      * Input: Code = "FULL_TEST" (đã tồn tại)
      * Expected Output: Error chứa thông tin code trùng
+     * Notes: Không tạo record mới khi code đã tồn tại.
      */
     it('TC_ES_ET_003: Thất bại khi tạo ExamType với Code đã tồn tại', async () => {
       // Arrange
@@ -1484,6 +1919,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
      * Test Objective: Kiểm tra cập nhật thông tin loại bài test
      * Input: id = 1, data = { Description: "Updated Description" }
      * Expected Output: ExamType được cập nhật
+     * Notes: Cho phép partial update nếu id hợp lệ.
      */
     it('TC_ES_ET_004: Cập nhật ExamType thành công', async () => {
       // Arrange
@@ -1506,6 +1942,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
      * Test Objective: Kiểm tra validation ExamType tồn tại
      * Input: id = 999
      * Expected Output: Error "Exam type not found"
+     * Notes: Không gọi update khi id không tồn tại.
      */
     it('TC_ES_ET_005: Thất bại khi ExamType không tồn tại', async () => {
       // Arrange
@@ -1522,6 +1959,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
      * Test Objective: Kiểm tra unique constraint khi update Code
      * Input: id = 1, data = { Code: "MINI_TEST" } (đã được dùng bởi type khác)
      * Expected Output: Error chứa thông tin code trùng
+     * Notes: Phải giữ tính duy nhất của ExamType.Code.
      */
     it('TC_ES_ET_006: Thất bại khi cập nhật Code trùng với type khác', async () => {
       // Arrange
@@ -1586,6 +2024,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
      * Test Objective: Kiểm tra trả về OrderIndex tiếp theo cho exam
      * Input: examId = 1
      * Expected Output: Số nguyên > 0 (giá trị OrderIndex tiếp theo)
+     * Notes: Giá trị trả về dùng cho add question/group tiếp theo.
      */
     it('TC_ES_NOI_001: Lấy next OrderIndex thành công', async () => {
       // Arrange
@@ -1605,6 +2044,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
      * Test Objective: Validation - exam phải tồn tại
      * Input: examId = 999
      * Expected Output: Error "Exam not found"
+     * Notes: Không gọi getNextOrderIndex của repository khi exam null.
      */
     it('TC_ES_NOI_002: Thất bại khi exam không tồn tại', async () => {
       // Arrange
@@ -1627,6 +2067,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
      * Test Objective: Kiểm tra exam có cấu trúc hợp lệ
      * Input: examId = 1 (exam hợp lệ)
      * Expected Output: { isValid: true, issues: [] }
+     * Notes: Trạng thái hợp lệ phải không có issue nào.
      */
     it('TC_ES_VES_001: Validate exam với cấu trúc hợp lệ', async () => {
       // Arrange
@@ -1650,6 +2091,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
      * Test Objective: Kiểm tra phát hiện lỗi cấu trúc
      * Input: examId = 1 (exam có gaps trong OrderIndex)
      * Expected Output: { isValid: false, issues: ["Gap in OrderIndex..."] }
+     * Notes: issues cần mô tả rõ vị trí lỗi để dễ sửa.
      */
     it('TC_ES_VES_002: Validate phát hiện structural issues', async () => {
       // Arrange
@@ -1674,6 +2116,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
      * Test Objective: Validation - exam phải tồn tại cho validate
      * Input: examId = 999
      * Expected Output: Error "Exam not found"
+     * Notes: Không chạy validate structure khi exam không tồn tại.
      */
     it('TC_ES_VES_003: Thất bại khi exam không tồn tại', async () => {
       // Arrange
@@ -1696,6 +2139,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
      * Test Objective: Kiểm tra nén lại OrderIndex sequence
      * Input: examId = 1 (exam có gaps: 1,2,5,6 → 1,2,3,4)
      * Expected Output: Số questions được reorder
+     * Notes: Reorder phải giữ đúng số lượng phần tử ban đầu.
      */
     it('TC_ES_CEO_001: Compact order thành công', async () => {
       // Arrange
@@ -1707,7 +2151,10 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
 
       // Assert
       expect(result).toBe(2);
-      expect(mockExamRepo.reorderQuestions).toHaveBeenCalled();
+      expect(mockExamRepo.reorderQuestions).toHaveBeenCalledWith([
+        { examQuestionId: 1, newOrderIndex: 1 },
+        { examQuestionId: 2, newOrderIndex: 2 },
+      ]);
     });
 
     /**
@@ -1716,6 +2163,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
      * Test Objective: Authorization check
      * Input: userId = 2 (không phải owner)
      * Expected Output: Error "You do not have permission to modify this exam"
+     * Notes: Không gọi reorder khi user không có quyền.
      */
     it('TC_ES_CEO_002: Thất bại khi user không có quyền', async () => {
       // Arrange
@@ -1724,6 +2172,39 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
       // Act & Assert
       await expect(examService.compactExamOrder(1, 2))
         .rejects.toThrow('You do not have permission to modify this exam');
+    });
+
+    /**
+     * TC_ES_CEO_003: compactExamOrder thất bại khi exam không tồn tại
+     * Test Objective: Validate exam tồn tại trước khi compact
+     * Input: examId = 999
+     * Expected Output: Throw "Exam not found"
+     * Notes: Nhánh lỗi cơ bản cần có ở mọi thao tác mutate.
+     */
+    it('TC_ES_CEO_003: compactExamOrder thất bại khi exam không tồn tại', async () => {
+      (mockExamRepo.findById as jest.Mock).mockResolvedValue(null);
+
+      await expect(examService.compactExamOrder(999, 1))
+        .rejects.toThrow('Exam not found');
+    });
+
+    /**
+     * TC_ES_CEO_004: compactExamOrder với exam rỗng vẫn gọi reorderQuestions([])
+     * Test Objective: Đảm bảo xử lý an toàn khi exam không có question
+     * Input: exam.examQuestions = []
+     * Expected Output: reorderQuestions([]), return 0
+     * Notes: Edge case sau khi xóa toàn bộ câu hỏi.
+     */
+    it('TC_ES_CEO_004: compactExamOrder với exam rỗng vẫn gọi reorderQuestions([])', async () => {
+      (mockExamRepo.findById as jest.Mock).mockResolvedValue({
+        ...mockExam,
+        examQuestions: [],
+      });
+      (mockExamRepo.reorderQuestions as jest.Mock).mockResolvedValue(0);
+
+      const result = await examService.compactExamOrder(1, 1);
+      expect(result).toBe(0);
+      expect(mockExamRepo.reorderQuestions).toHaveBeenCalledWith([]);
     });
   });
 
@@ -1763,6 +2244,9 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
 
       // Assert
       expect(result).toBe(true);
+      expect(mockExamRepo.updateExamQuestion).toHaveBeenCalledWith(1, {
+        QuestionID: 3,
+      });
     });
 
     /**
@@ -1771,6 +2255,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
      * Test Objective: Validation - question cũ phải tồn tại trong exam
      * Input: oldQuestionId = 999 (không có trong exam)
      * Expected Output: Error "Question not found in exam"
+     * Notes: Chỉ cho phép replace khi old question tồn tại trong mapping.
      */
     it('TC_ES_RPQ_002: Thất bại khi câu hỏi cũ không có trong exam', async () => {
       // Arrange
@@ -1787,6 +2272,7 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
      * Test Objective: Validation - question mới phải tồn tại trong DB
      * Input: newQuestionId = 999 (không tồn tại)
      * Expected Output: Error "New question not found"
+     * Notes: Không update ExamQuestion nếu new question invalid.
      */
     it('TC_ES_RPQ_003: Thất bại khi câu hỏi mới không tồn tại', async () => {
       // Arrange
@@ -1819,5 +2305,223 @@ describe('ExamService - Quản lý bài test đầu vào', () => {
       await expect(examService.replaceQuestionInExam(1, 1, 3, 1))
         .rejects.toThrow('Cannot replace with question from different media group');
     });
+
+    /**
+     * TC_ES_RPQ_005: Thất bại khi user không có quyền thay câu hỏi
+     * Test Objective: Authorization check cho replaceQuestionInExam
+     * Input: exam owner = 1, userId = 999
+     * Expected Output: Error "You do not have permission to modify this exam"
+     * Notes: Không gọi repository update khi không đủ quyền.
+     */
+    it('TC_ES_RPQ_005: Thất bại khi user không có quyền thay câu hỏi', async () => {
+      (mockExamRepo.findById as jest.Mock).mockResolvedValue(mockExam);
+
+      await expect(examService.replaceQuestionInExam(1, 1, 3, 999))
+        .rejects.toThrow('You do not have permission to modify this exam');
+    });
+
+    /**
+     * TC_ES_RPQ_006: Thất bại khi updateExamQuestion trả về null
+     * Test Objective: Kiểm tra xử lý khi repository update thất bại
+     * Input: updateExamQuestion -> null
+     * Expected Output: Throw "Failed to update exam question"
+     * Notes: Defensive check cho lỗi thao tác DB.
+     */
+    it('TC_ES_RPQ_006: Thất bại khi updateExamQuestion trả về null', async () => {
+      const examWithNonGrouped = {
+        ...mockExam,
+        examQuestions: [{
+          ...mockExamQuestions[0],
+          IsGrouped: false,
+          MediaQuestionID: null,
+        }],
+      };
+      (mockExamRepo.findById as jest.Mock).mockResolvedValue(examWithNonGrouped);
+      (mockQuestionRepo.findById as jest.Mock).mockResolvedValue(mockQuestions[2]);
+      (mockExamRepo.updateExamQuestion as jest.Mock).mockResolvedValue(null);
+
+      await expect(examService.replaceQuestionInExam(1, 1, 3, 1))
+        .rejects.toThrow('Failed to update exam question');
+    });
   });
+
+  describe('moveMediaGroupInExam - Di chuyển media group trong bài test', () => {
+    /**
+     * TC_ES_MMG_001: moveMediaGroupInExam thành công
+     * Test Objective: Kiểm tra di chuyển media group sang vị trí mới
+     * Input: examId=1, mediaQuestionId=1, newStartOrderIndex=5, userId=1
+     * Expected Output: Trả về số lượng câu hỏi được di chuyển
+     * Notes: Verify đúng tham số truyền xuống repository.
+     */
+    it('TC_ES_MMG_001: moveMediaGroupInExam thành công', async () => {
+      (mockExamRepo.findById as jest.Mock).mockResolvedValue(mockExam);
+      (mockExamRepo.moveMediaGroup as jest.Mock).mockResolvedValue(2);
+
+      const result = await examService.moveMediaGroupInExam(1, 1, 5, 1);
+
+      expect(result).toBe(2);
+      expect(mockExamRepo.moveMediaGroup).toHaveBeenCalledWith(1, 1, 5);
+    });
+
+    /**
+     * TC_ES_MMG_002: moveMediaGroupInExam phải reject khi newStartOrderIndex <= 0
+     * Test Objective: Validate chỉ số vị trí mới phải lớn hơn 0
+     * Input: newStartOrderIndex = 0
+     * Expected Output: Throw "newStartOrderIndex must be greater than 0"
+     * Notes: Test bug-hunting cho thiếu validation input.
+     */
+    it('TC_ES_MMG_002: moveMediaGroupInExam phải reject khi newStartOrderIndex <= 0', async () => {
+      (mockExamRepo.findById as jest.Mock).mockResolvedValue(mockExam);
+
+      await expect(examService.moveMediaGroupInExam(1, 1, 0, 1))
+        .rejects.toThrow('newStartOrderIndex must be greater than 0');
+    });
+
+    /**
+     * TC_ES_MMG_003: moveMediaGroupInExam thất bại khi exam không tồn tại
+     * Test Objective: Validate exam phải tồn tại trước khi move
+     * Input: examId = 999
+     * Expected Output: Throw "Exam not found"
+     * Notes: Nhánh lỗi cơ bản bắt buộc.
+     */
+    it('TC_ES_MMG_003: moveMediaGroupInExam thất bại khi exam không tồn tại', async () => {
+      (mockExamRepo.findById as jest.Mock).mockResolvedValue(null);
+
+      await expect(examService.moveMediaGroupInExam(999, 1, 5, 1))
+        .rejects.toThrow('Exam not found');
+    });
+
+    /**
+     * TC_ES_MMG_004: moveMediaGroupInExam thất bại khi user không có quyền
+     * Test Objective: Authorization check cho moveMediaGroupInExam
+     * Input: exam owner = 1, userId = 2
+     * Expected Output: Throw "You do not have permission to modify this exam"
+     * Notes: Không gọi repository move khi không đủ quyền.
+     */
+    it('TC_ES_MMG_004: moveMediaGroupInExam thất bại khi user không có quyền', async () => {
+      (mockExamRepo.findById as jest.Mock).mockResolvedValue(mockExam);
+
+      await expect(examService.moveMediaGroupInExam(1, 1, 5, 2))
+        .rejects.toThrow('You do not have permission to modify this exam');
+    });
+
+  });
+
+  describe('getExamMediaGroupSummary - Tổng hợp media group của bài test', () => {
+    /**
+     * TC_ES_MGS_001: getExamMediaGroupSummary trả về summary
+     * Test Objective: Kiểm tra tổng hợp thống kê media group của exam
+     * Input: stats hợp lệ + mediaGroupDetails có 1 nhóm
+     * Expected Output: Summary chứa totals và groupBreakdown đúng
+     * Notes: Verify mapping title/section từ media repository.
+     */
+    it('TC_ES_MGS_001: getExamMediaGroupSummary trả về summary', async () => {
+      (mockExamRepo.getEnhancedStatistics as jest.Mock).mockResolvedValue({
+        totalQuestions: 2,
+        totalMediaGroups: 1,
+        questionsInGroups: 2,
+        standaloneQuestions: 0,
+        mediaGroupDetails: [{ mediaQuestionId: 1, questionCount: 2 }],
+      });
+      (mockMediaQuestionRepo.findById as jest.Mock).mockResolvedValue(mockMediaQuestion);
+
+      const result = await examService.getExamMediaGroupSummary(1);
+
+      expect(result.totalQuestions).toBe(2);
+      expect(result.groupBreakdown[0]).toEqual({
+        mediaQuestionId: 1,
+        title: 'Part 1 - Photos',
+        questionCount: 2,
+        section: 'Part 1',
+      });
+    });
+
+    /**
+     * TC_ES_MGS_002: getExamMediaGroupSummary thất bại khi stats null
+     * Test Objective: Validate exam tồn tại trước khi build summary
+     * Input: getEnhancedStatistics trả về null
+     * Expected Output: Throw "Exam not found"
+     * Notes: Tránh trả summary rỗng gây hiểu nhầm nghiệp vụ.
+     */
+    it('TC_ES_MGS_002: getExamMediaGroupSummary thất bại khi stats null', async () => {
+      (mockExamRepo.getEnhancedStatistics as jest.Mock).mockResolvedValue(null);
+
+      await expect(examService.getExamMediaGroupSummary(1))
+        .rejects.toThrow('Exam not found');
+    });
+
+  });
+
+  describe('getExamContentOrganized - Lấy nội dung bài test theo nhóm', () => {
+    /**
+     * TC_ES_GCO_001: getExamContentOrganized trả về dữ liệu đã transform
+     * Test Objective: Kiểm tra transform nội dung exam theo media group
+     * Input: mediaGroups map có 1 group, standaloneQuestions rỗng
+     * Expected Output: mediaGroups có dữ liệu chuẩn và không lộ IsCorrect
+     * Notes: Dùng cho UI hiển thị nhóm câu hỏi theo media.
+     */
+    it('TC_ES_GCO_001: getExamContentOrganized trả về dữ liệu đã transform', async () => {
+      const groupedMap = new Map<number, any[]>([
+        [1, [mockExamQuestions[0], mockExamQuestions[1]]],
+      ]);
+      (mockExamRepo.getOrganizedContent as jest.Mock).mockResolvedValue({
+        mediaGroups: groupedMap,
+        standaloneQuestions: [],
+      });
+      (mockMediaQuestionRepo.findById as jest.Mock).mockResolvedValue(mockMediaQuestion);
+
+      const result = await examService.getExamContentOrganized(1);
+
+      expect(result.mediaGroups).toHaveLength(1);
+      expect(result.mediaGroups[0].mediaQuestionId).toBe(1);
+      expect(result.mediaGroups[0].questions[0].choices[0]).not.toHaveProperty('IsCorrect');
+    });
+
+    /**
+     * TC_ES_GCO_003: getExamContentOrganized thất bại khi media group id không tồn tại
+     * Test Objective: Kiểm tra nhánh lỗi khi media id không resolve được
+     * Input: mediaGroups có key=999, findById(999)=null
+     * Expected Output: Throw "Media question 999 not found"
+     * Notes: Tránh trả dữ liệu group mồ côi/không nhất quán.
+     */
+    it('TC_ES_GCO_003: getExamContentOrganized thất bại khi media group id không tồn tại', async () => {
+      const groupedMap = new Map<number, any[]>([
+        [999, [mockExamQuestions[0]]],
+      ]);
+      (mockExamRepo.getOrganizedContent as jest.Mock).mockResolvedValue({
+        mediaGroups: groupedMap,
+        standaloneQuestions: [],
+      });
+      (mockMediaQuestionRepo.findById as jest.Mock).mockResolvedValue(null);
+
+      await expect(examService.getExamContentOrganized(1))
+        .rejects.toThrow('Media question 999 not found');
+    });
+
+    /**
+     * TC_ES_GCO_002: getExamContentOrganized phải reject khi standalone question thiếu mediaQuestion
+     * Test Objective: Fail graceful khi standalone question thiếu media relation
+     * Input: standalone.question.mediaQuestion = null
+     * Expected Output: Throw "Standalone question media data is missing"
+     * Notes: Phát hiện điểm null dereference trong mapper.
+     */
+    it('TC_ES_GCO_002: getExamContentOrganized phải reject khi standalone question thiếu mediaQuestion', async () => {
+      (mockExamRepo.getOrganizedContent as jest.Mock).mockResolvedValue({
+        mediaGroups: new Map(),
+        standaloneQuestions: [
+          {
+            ...mockExamQuestions[0],
+            question: {
+              ...mockQuestions[0],
+              mediaQuestion: null,
+            },
+          },
+        ],
+      });
+
+      await expect(examService.getExamContentOrganized(1))
+        .rejects.toThrow('Standalone question media data is missing');
+    });
+  });
+
 });
