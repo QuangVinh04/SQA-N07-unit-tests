@@ -471,42 +471,42 @@ export class ExamService {
    * @param userId - ID of user creating the duplicate
    * @returns Newly created exam
    */
-  // async duplicateExam(examId: number, userId: number): Promise<Exam> {
-  //   // Get the original exam
-  //   const originalExam = await this.examRepository.findById(examId);
+  async duplicateExam(examId: number, userId: number): Promise<Exam> {
+    // Get the original exam
+    const originalExam = await this.examRepository.findById(examId);
 
-  //   if (!originalExam) {
-  //     throw new Error('Exam not found');
-  //   }
+    if (!originalExam) {
+      throw new Error('Exam not found');
+    }
 
-  //   // Create a new exam with same properties but new title
-  //   const duplicatedExam = await this.examRepository.create({
-  //     Title: `${originalExam.Title} - Copy`,
-  //     TimeExam: originalExam.TimeExam,
-  //     Type: originalExam.Type,
-  //     ExamTypeID: originalExam.ExamTypeID,
-  //     UserID: userId,
-  //   });
+    // Create a new exam with same properties but new title
+    const duplicatedExam = await this.examRepository.create({
+      Title: `${originalExam.Title} - Copy`,
+      TimeExam: originalExam.TimeExam,
+      Type: originalExam.Type,
+      ExamTypeID: originalExam.ExamTypeID,
+      UserID: userId,
+    });
 
-  //   // Copy all questions with their order indices
-  //   if (originalExam.examQuestions && originalExam.examQuestions.length > 0) {
-  //     const questionsToAdd = originalExam.examQuestions.map((eq) => ({
-  //       QuestionID: eq.QuestionID,
-  //       OrderIndex: eq.OrderIndex,
-  //     }));
+    // Copy all questions with their order indices
+    if (originalExam.examQuestions && originalExam.examQuestions.length > 0) {
+      const questionsToAdd = originalExam.examQuestions.map((eq) => ({
+        QuestionID: eq.QuestionID,
+        OrderIndex: eq.OrderIndex,
+      }));
 
-  //     await this.examRepository.addQuestions(duplicatedExam.ID, questionsToAdd);
-  //   }
+      await this.examRepository.addQuestions(duplicatedExam.ID, questionsToAdd);
+    }
 
-  //   // Return the complete duplicated exam
-  //   const completeExam = await this.examRepository.findById(duplicatedExam.ID);
+    // Return the complete duplicated exam
+    const completeExam = await this.examRepository.findById(duplicatedExam.ID);
 
-  //   if (!completeExam) {
-  //     throw new Error('Failed to retrieve duplicated exam');
-  //   }
+    if (!completeExam) {
+      throw new Error('Failed to retrieve duplicated exam');
+    }
 
-  //   return completeExam;
-  // }
+    return completeExam;
+  }
 
   /**
    * Clone exam bao gồm media groups
